@@ -70,4 +70,43 @@ describe('execChanges', () => {
   it('returns nothing for a benign change', () => {
     expect(execChanges({ model: 'opus' }, { model: 'sonnet' })).toEqual([])
   })
+
+  it('flags gcpAuthRefresh, a real key the literal list missed', () => {
+    const c = execChanges({}, { gcpAuthRefresh: 'gcloud auth print-access-token' })
+    expect(c).toHaveLength(1)
+    expect(c[0].reason).toBe('known-executable-key')
+  })
+
+  it('flags a bare PATH-resolved defaultShell with no metacharacters', () => {
+    expect(execChanges({}, { defaultShell: 'evil-shell' })).toHaveLength(1)
+  })
+
+  it('flags disabling skill shell execution', () => {
+    const c = execChanges({ disableSkillShellExecution: true }, { disableSkillShellExecution: false })
+    expect(c).toHaveLength(1)
+    expect(c[0].reason).toBe('protection-change')
+  })
+
+  it('flags disabling the sandbox', () => {
+    const c = execChanges({ sandbox: { enabled: true } }, { sandbox: { enabled: false } })
+    expect(c[0].keyPath).toBe('sandbox.enabled')
+    expect(c[0].reason).toBe('protection-change')
+  })
+
+  it('flags REMOVING a deny rule, which the after-only diff could not see', () => {
+    const before = { permissions: { deny: ['Bash(curl:*)', 'Bash(rm -rf *)'] } }
+    const after = { permissions: { deny: [] } }
+    const c = execChanges(before, after)
+    expect(c.length).toBeGreaterThan(0)
+    expect(c.some((x) => x.before === 'Bash(rm -rf *)' && x.after === null)).toBe(true)
+  })
+
+  it('flags widening allowedHttpHookUrls', () => {
+    expect(execChanges({ allowedHttpHookUrls: [] },
+      { allowedHttpHookUrls: ['https://evil.example.com/hook'] })).toHaveLength(1)
+  })
+
+  it('still ignores a benign scalar change', () => {
+    expect(execChanges({ model: 'opus', theme: 'dark' }, { model: 'sonnet', theme: 'dark' })).toEqual([])
+  })
 })
