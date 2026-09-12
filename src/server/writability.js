@@ -5,10 +5,15 @@ const MANAGED_DIRS = [
   '/etc/claude-code',
 ]
 
+// This filesystem is case-insensitive on darwin and win32, so a case-exact
+// string comparison fails open: /users/... and /Users/... are the same file.
+const CASE_INSENSITIVE = process.platform === 'darwin' || process.platform === 'win32'
+const fold = (p) => (CASE_INSENSITIVE ? p.normalize('NFC').toLowerCase() : p.normalize('NFC'))
+
 // Note: a plain startsWith(root) also matches "~/.claude.json" and
 // "~/.claude-atlas". Compare on path segments. Spec §9.4.
 function isUnder(child, parent) {
-  const rel = path.relative(parent, child)
+  const rel = path.relative(fold(path.resolve(parent)), fold(path.resolve(child)))
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
 }
 
@@ -19,7 +24,7 @@ export function classify({ path: target, kind, root }) {
     return { class: 'readonly', reason: 'Managed policy — root-owned, deployed by your organization' }
   }
 
-  if (path.basename(abs) === '.claude.json' && !isUnder(abs, root)) {
+  if (fold(path.basename(abs)) === '.claude.json' && !isUnder(abs, root)) {
     return { class: 'guarded', reason: 'Holds your sign-in session and per-project state' }
   }
 
@@ -49,6 +54,13 @@ export function classify({ path: target, kind, root }) {
 
   if (kind === 'hookScript' || kind === 'statusLineScript') {
     return { class: 'exec', reason: 'This file is executed as shell by Claude Code' }
+  }
+
+  // Anything that resolves outside the configuration root is not ours to write.
+  // This comes after the hookScript/statusLineScript check above, because those
+  // legitimately live elsewhere (e.g. ~/bin/statusline.sh).
+  if (!isUnder(abs, root)) {
+    return { class: 'readonly', reason: 'Outside the Claude configuration root' }
   }
 
   return { class: 'free', reason: 'User-authored configuration' }

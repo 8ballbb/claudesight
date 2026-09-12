@@ -46,4 +46,38 @@ describe('classify', () => {
     expect(at('hooks/format-hook.sh', 'hookScript').class).toBe('exec')
     expect(at('statusline-command.sh', 'statusLineScript').class).toBe('exec')
   })
+
+  it('is not fooled by path case on a case-insensitive filesystem', () => {
+    const r = classify({
+      path: '/users/example/.claude/plugins/cache/m/p/1/skills/s/SKILL.md',
+      kind: 'skill',
+      root: '/Users/example/.claude',
+    })
+    expect(r.class).toBe('redirect')
+  })
+
+  it('still guards a case-variant .claude.json', () => {
+    const r = classify({ path: '/Users/x/.CLAUDE.json', kind: 'clauderc', root: '/Users/x/.claude' })
+    expect(r.class).toBe('guarded')
+  })
+
+  it('refuses a path that traverses outside the config root', () => {
+    const r = classify({
+      path: '/Users/x/.claude/plugins/cache/../../../.ssh/id_rsa',
+      kind: 'skill',
+      root: '/Users/x/.claude',
+    })
+    expect(r.class).toBe('readonly')
+    expect(r.reason).toMatch(/outside/i)
+  })
+
+  it('does not confuse a sibling directory sharing the root prefix', () => {
+    const r = classify({ path: '/Users/x/.claude-atlas/backups/a.bak', kind: 'memory', root: '/Users/x/.claude' })
+    expect(r.class).toBe('readonly')
+  })
+
+  it('still allows a hook script that lives outside the config root', () => {
+    const r = classify({ path: '/Users/x/bin/statusline.sh', kind: 'statusLineScript', root: '/Users/x/.claude' })
+    expect(r.class).toBe('exec')
+  })
 })
