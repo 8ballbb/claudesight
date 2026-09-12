@@ -22,4 +22,9 @@ describe('resolveRoot', () => {
   it('treats an empty CLAUDE_CONFIG_DIR as unset', () => {
     expect(resolveRoot({ CLAUDE_CONFIG_DIR: '' }, '/Users/x').source).toBe('default')
   })
+
+  it('does not throw when HOME is unset', () => {
+    expect(() => resolveRoot({}, undefined)).not.toThrow()
+    expect(resolveRoot({}, undefined).source).toBe('default')
+  })
 })
