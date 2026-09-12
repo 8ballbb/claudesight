@@ -51,4 +51,29 @@ describe('extractScripts', () => {
     expect(refs[0].scriptPath).toBeNull()
     expect(refs[0].command).toBe('echo inline')
   })
+
+  it('expands ~ against the home directory, not the config root', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-home-'))
+    try {
+      fs.mkdirSync(path.join(home, 'bin'), { recursive: true })
+      fs.writeFileSync(path.join(home, 'bin', 'outside.sh'), '#!/bin/bash\necho outside\n')
+      const refs = extractScripts({ statusLine: { command: 'bash ~/bin/outside.sh' } }, root, home)
+      expect(refs[0].scriptPath).toBe(path.join(home, 'bin', 'outside.sh'))
+      expect(refs[0].body.value).toContain('echo outside')
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
+
+  it('still resolves a ~ path that does live under .claude', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-home2-'))
+    try {
+      fs.mkdirSync(path.join(home, '.claude', 'hooks'), { recursive: true })
+      fs.writeFileSync(path.join(home, '.claude', 'hooks', 'h.sh'), '#!/bin/bash\necho hook\n')
+      const refs = extractScripts({ statusLine: { command: 'bash ~/.claude/hooks/h.sh' } }, root, home)
+      expect(refs[0].scriptPath).toBe(path.join(home, '.claude', 'hooks', 'h.sh'))
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
 })
