@@ -24,7 +24,14 @@ describe('resolveRoot', () => {
   })
 
   it('does not throw when HOME is unset', () => {
-    expect(() => resolveRoot({}, undefined)).not.toThrow()
-    expect(resolveRoot({}, undefined).source).toBe('default')
+    const saved = process.env.HOME
+    delete process.env.HOME
+    try {
+      expect(() => resolveRoot({}, undefined)).not.toThrow()
+      expect(resolveRoot({}, undefined).source).toBe('default')
+    } finally {
+      if (saved === undefined) delete process.env.HOME
+      else process.env.HOME = saved
+    }
   })
 })
