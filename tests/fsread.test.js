@@ -72,4 +72,27 @@ describe('walkForSafe', () => {
   it('respects maxDepth', () => {
     expect(walkForSafe(path.join(tmp, 'deep'), 'TARGET.md', 1).found).toHaveLength(0)
   })
+  it('finds a target reachable only through a symlinked directory', () => {
+    const realDir = path.join(tmp, 'symreal', 'nested')
+    fs.mkdirSync(realDir, { recursive: true })
+    fs.writeFileSync(path.join(realDir, 'TARGET.md'), 'via symlink')
+    fs.symlinkSync(path.join(tmp, 'symreal'), path.join(tmp, 'symlink-dir'))
+    const r = walkForSafe(path.join(tmp, 'symlink-dir'), 'TARGET.md', 5)
+    expect(r.found).toHaveLength(1)
+  })
+  it('terminates on a symlink cycle', () => {
+    const cyc = path.join(tmp, 'cyc')
+    fs.mkdirSync(cyc, { recursive: true })
+    fs.symlinkSync(cyc, path.join(cyc, 'self'))
+    expect(() => walkForSafe(cyc, 'TARGET.md', 20)).not.toThrow()
+  })
+  it('does not throw or lose siblings on a broken symlink', () => {
+    const brk = path.join(tmp, 'broken')
+    fs.mkdirSync(brk, { recursive: true })
+    fs.symlinkSync(path.join(tmp, 'does-not-exist'), path.join(brk, 'dangling'))
+    fs.writeFileSync(path.join(brk, 'TARGET.md'), 'sibling survives')
+    const r = walkForSafe(brk, 'TARGET.md', 5)
+    expect(r.found).toHaveLength(1)
+    expect(r.errors).toEqual([])
+  })
 })

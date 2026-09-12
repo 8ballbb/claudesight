@@ -52,17 +52,42 @@ export function readJsonSafe(file) {
 export function walkForSafe(dir, filename, maxDepth = 8) {
   const found = []
   const deniedDirs = []
+  const errors = []
+  const seen = new Set()
+
   const visit = (current, depth) => {
     if (depth > maxDepth) return
-    const r = readDirSafe(current)
+
+    // Symlinks can point back up the tree; key the guard on the resolved path.
+    let real
+    try { real = fs.realpathSync(current) } catch { real = current }
+    if (seen.has(real)) return
+    seen.add(real)
+
+    let r
+    try {
+      r = readDirSafe(current)
+    } catch (err) {
+      // An unmapped errno must not discard the results gathered so far.
+      errors.push({ path: current, errno: err.code ?? 'UNKNOWN' })
+      return
+    }
     if (r.state === 'denied') { deniedDirs.push(current); return }
     if (r.state !== 'ok') return
+
     for (const entry of r.value) {
       const full = path.join(current, entry.name)
-      if (entry.isDirectory()) visit(full, depth + 1)
+      // Dirent.isDirectory() is false for a symlink pointing at a directory,
+      // so resolve it explicitly or the subtree vanishes with no signal.
+      let isDir = entry.isDirectory()
+      if (entry.isSymbolicLink()) {
+        try { isDir = fs.statSync(full).isDirectory() } catch { isDir = false }
+      }
+      if (isDir) visit(full, depth + 1)
       else if (entry.name === filename) found.push(full)
     }
   }
+
   visit(dir, 1)
-  return { found, denied: deniedDirs }
+  return { found, denied: deniedDirs, errors }
 }
