@@ -178,4 +178,28 @@ describe('writeArtifact', () => {
     expect(r.ok).toBe(false)
     expect(fs.readFileSync(j, 'utf8')).toBe('{"a":1}\n')
   })
+
+  it('writes through a symlinked config root', () => {
+    const real = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-realroot-'))
+    const link = path.join(os.tmpdir(), `atlas-linkroot-${process.pid}`)
+    try {
+      fs.writeFileSync(path.join(real, 'CLAUDE.md'), 'original\n')
+      fs.symlinkSync(real, link)
+      const t = path.join(link, 'CLAUDE.md')
+      const r = writeArtifact({ target: t, content: 'updated\n', etag: readForEdit(t).etag, kind: 'memory', root: link })
+      expect(r.ok).toBe(true)
+    } finally {
+      fs.rmSync(link, { force: true })
+      fs.rmSync(real, { recursive: true, force: true })
+    }
+  })
+
+  it('reclaims a stale lockfile', () => {
+    const f = path.join(root, 'CLAUDE.md')
+    fs.writeFileSync(f, 'original\n')
+    fs.writeFileSync(`${f}.atlas-lock`, JSON.stringify({ pid: 999999, at: Date.now() - 120_000 }))
+    const r = writeArtifact({ target: f, content: 'updated\n', etag: readForEdit(f).etag, kind: 'memory', root })
+    expect(r.ok).toBe(true)
+    expect(fs.existsSync(`${f}.atlas-lock`)).toBe(false)
+  })
 })

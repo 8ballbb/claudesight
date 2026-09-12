@@ -10,16 +10,21 @@ export function readSettings(root) {
 
 // `~` in a shell command is the home directory, not the config root — these
 // differ whenever CLAUDE_CONFIG_DIR is set.
+const INTERPRETERS = new Set(['env', 'sh', 'bash', 'zsh', 'dash', 'node', 'python', 'python3', 'ruby', 'perl'])
+
 function scriptPathFrom(command, home) {
   if (typeof command !== 'string') return null
+  let found = null
   for (const token of command.split(/\s+/)) {
+    if (token.startsWith('-')) continue
     const candidate = token.startsWith('~/') ? path.join(home, token.slice(2)) : token
     if (!candidate.includes('/')) continue
+    if (INTERPRETERS.has(path.basename(candidate))) continue
     try {
-      if (fs.statSync(candidate).isFile()) return candidate
+      if (fs.statSync(candidate).isFile()) found = candidate
     } catch { /* not a path; keep looking */ }
   }
-  return null
+  return found
 }
 
 function makeRef(kind, keyPath, command, home) {

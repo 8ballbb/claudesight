@@ -5,7 +5,7 @@ import { createServer } from '../src/server/index.js'
 import { resolveRoot } from '../src/server/roots.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const root = resolveRoot(process.env, process.env.HOME)
+const root = resolveRoot(process.env)
 
 try {
   const { url } = await createServer({ root: root.path, distDir: path.join(here, '..', 'dist') })

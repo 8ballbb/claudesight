@@ -13,9 +13,6 @@
     "lint": "eslint src tests"
   },
   "dependencies": {
-    "dompurify": "^3.1.6",
-    "jsdom": "^24.1.0",
-    "markdown-it": "^14.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "yaml": "^2.5.0"

@@ -22,6 +22,13 @@ const readBody = (req) => new Promise((resolve, reject) => {
 
 const parseBody = async (req) => { try { return JSON.parse(await readBody(req)) } catch { return null } }
 
+// A plain startsWith(distDir) also matches a sibling directory with distDir as
+// a string prefix (e.g. "distDir-evil"). Compare on path segments instead.
+const isUnderDir = (child, parent) => {
+  const rel = path.relative(parent, child)
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
+}
+
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json',
   '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' }
@@ -56,6 +63,9 @@ export function createServer({ root, distDir }) {
 
         if (url.pathname === '/api/inventory') {
           inventory = buildInventory(root)
+          // `table` is deliberately stripped from the response — it holds absolute
+          // filesystem paths and is server-only lookup state, never sent to the client.
+          // eslint-disable-next-line no-unused-vars
           const { table, ...safe } = inventory
           return json(res, 200, safe)
         }
@@ -91,7 +101,7 @@ export function createServer({ root, distDir }) {
         if (distDir && req.method === 'GET') {
           const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1)
           const file = path.join(distDir, rel)
-          if (file.startsWith(distDir) && fs.existsSync(file)) {
+          if (isUnderDir(file, distDir) && fs.existsSync(file)) {
             res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream' })
             return res.end(fs.readFileSync(file))
           }

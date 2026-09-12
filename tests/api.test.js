@@ -69,4 +69,13 @@ describe('api', () => {
     expect(scripts.items[0].kind).toMatch(/hookScript|statusLineScript/)
     expect(scripts.items[0].writability.class).toBe('exec')
   })
+
+  it('surfaces a broken @-import instead of dropping it', async () => {
+    fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n@GONE.md\n')
+    const inv = await (await call('/api/inventory')).json()
+    const mem = inv.groups.find((g) => g.kind === 'memory')
+    const gone = mem.items.find((i) => i.path.endsWith('GONE.md'))
+    expect(gone).toBeTruthy()
+    expect(gone.state).toBe('absent')
+  })
 })

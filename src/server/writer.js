@@ -32,16 +32,31 @@ export function readForEdit(target) {
 }
 
 function hasSymlinkComponent(target, root) {
+  let realRoot
+  try { realRoot = fs.realpathSync(root) } catch { realRoot = path.resolve(root) }
   let current = path.resolve(target)
   const stop = path.parse(current).root
-  while (current !== stop) {
+  while (current !== stop && current !== realRoot && current !== path.resolve(root)) {
     try {
       if (fs.lstatSync(current).isSymbolicLink()) return true
     } catch { /* missing components are fine */ }
-    if (current === path.resolve(root)) break
     current = path.dirname(current)
   }
   return false
+}
+
+// Spec §8.6: keep only the 10 most recent backups per file.
+function pruneBackups(target) {
+  const dir = path.dirname(target)
+  const base = path.basename(target)
+  const prefix = `${base}.atlas-`
+  const siblings = fs.readdirSync(dir)
+    .filter((name) => name.startsWith(prefix) && name.endsWith('.bak'))
+    .sort()
+    .reverse()
+  for (const stale of siblings.slice(10)) {
+    fs.rmSync(path.join(dir, stale), { force: true })
+  }
 }
 
 function backupBeside(target) {
@@ -52,9 +67,13 @@ function backupBeside(target) {
     fs.writeFileSync(fd, fs.readFileSync(target))
     const mode = fs.fstatSync(fd).mode & 0o777
     if (mode !== 0o600) throw new Error(`backup mode ${mode.toString(8)} !== 600`)
-  } finally {
+  } catch (err) {
     fs.closeSync(fd)
+    fs.rmSync(dest, { force: true })
+    throw err
   }
+  fs.closeSync(fd)
+  pruneBackups(target)
   return dest
 }
 
@@ -120,12 +139,24 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
 
   const lock = `${target}.atlas-lock`
   let lockFd
+  const claimLock = () => fs.openSync(lock, 'wx')
   try {
-    lockFd = fs.openSync(lock, 'wx')
+    lockFd = claimLock()
   } catch (err) {
-    if (err.code === 'EEXIST') return { ok: false, error: 'locked', reason: 'Another write is in progress' }
-    throw err
+    if (err.code !== 'EEXIST') throw err
+    let stale = false
+    try {
+      const held = JSON.parse(fs.readFileSync(lock, 'utf8'))
+      const ageMs = Date.now() - (held.at ?? 0)
+      let alive = false
+      try { process.kill(held.pid, 0); alive = true } catch { alive = false }
+      stale = ageMs > 60_000 && !alive
+    } catch { stale = true }
+    if (!stale) return { ok: false, error: 'locked', reason: 'Another write is in progress' }
+    fs.rmSync(lock, { force: true })
+    try { lockFd = claimLock() } catch { return { ok: false, error: 'locked', reason: 'Another write is in progress' } }
   }
+  fs.writeFileSync(lockFd, JSON.stringify({ pid: process.pid, at: Date.now() }))
 
   try {
     const current = fs.readFileSync(target)

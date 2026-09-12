@@ -76,4 +76,18 @@ describe('extractScripts', () => {
       fs.rmSync(home, { recursive: true, force: true })
     }
   })
+
+  it('does not mistake an interpreter for the script', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-interp-'))
+    try {
+      fs.mkdirSync(path.join(home, '.claude', 'hooks'), { recursive: true })
+      const script = path.join(home, '.claude', 'hooks', 'real.sh')
+      fs.writeFileSync(script, '#!/bin/bash\necho real\n')
+      const refs = extractScripts({ statusLine: { command: `/usr/bin/env bash ${script}` } }, root, home)
+      expect(refs[0].scriptPath).toBe(script)
+      expect(refs[0].body.value).toContain('echo real')
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
 })

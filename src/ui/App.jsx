@@ -45,8 +45,14 @@ export default function App() {
 
       {inv.denied?.length > 0 && (
         <p className={s.warn}>
-          {inv.denied.length} directories unreadable (macOS privacy protection) — grant Full Disk
+          {inv.denied.length} directories unreadable (permission denied) — grant Full Disk
           Access to see them.
+        </p>
+      )}
+
+      {inv.errors?.length > 0 && (
+        <p className={s.warn}>
+          {inv.errors.length} directories could not be read (unexpected error) — some artifacts may be missing.
         </p>
       )}
 
@@ -59,6 +65,12 @@ export default function App() {
                 <button className={s.name} onClick={() => setOpen(item)}>{item.label}</button>
                 <span className={s.meta}>{item.plugin ?? item.origin ?? ''}</span>
                 {item.drift === 'drifted' && <span className={s.drift}>drift</span>}
+                {item.state && item.state !== 'ok' && <span className={s.drift}>{item.state}</span>}
+                {item.malformed && <span className={s.drift}>malformed</span>}
+                {item.unreadable && <span className={s.drift}>{item.unreadable}</span>}
+                {item.manifestState && item.manifestState !== 'ok' && (
+                  <span className={s.drift}>manifest {item.manifestState}</span>
+                )}
                 <span className={s.klass}>{item.writability.class}</span>
               </li>
             ))}

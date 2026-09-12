@@ -12,6 +12,7 @@ export function buildInventory(root) {
   const table = new Map()
   const groups = []
   const denied = []
+  const errors = []
 
   const add = (groupKind, entries) => {
     const items = entries.map((e) => {
@@ -24,9 +25,14 @@ export function buildInventory(root) {
   }
 
   const mem = readMemory(path.join(root, 'CLAUDE.md'))
-  add('memory', flattenMemory(mem)
-    .filter((n) => n.state === 'ok')
-    .map((n) => ({ path: n.path, label: path.basename(n.path), bytes: n.bytes })))
+  add('memory', flattenMemory(mem).map((n) => ({
+    path: n.path,
+    label: path.basename(n.path),
+    bytes: n.bytes,
+    state: n.state,
+    cycle: n.cycle ?? false,
+    depthExceeded: n.depthExceeded ?? false,
+  })))
 
   const s = readSettings(root)
   add('settings', s.result.state === 'ok'
@@ -40,20 +46,24 @@ export function buildInventory(root) {
 
   const sk = readSkills(root)
   denied.push(...sk.denied)
+  errors.push(...sk.errors)
   add('skill', sk.skills.map((x) => ({
     path: x.path, label: x.name, description: x.description, origin: x.origin, plugin: x.plugin,
+    malformed: x.malformed, unreadable: x.unreadable,
   })))
 
   const pl = readPlugins(root)
   add('plugin', pl.plugins.map((p) => ({
     path: p.installPath, label: p.id, drift: p.drift,
-    recordedVersion: p.recordedVersion, manifestVersion: p.manifestVersion, enabled: p.enabled,
+    recordedVersion: p.recordedVersion, manifestVersion: p.manifestVersion,
+    manifestState: p.manifestState, scope: p.scope, enabled: p.enabled,
   })))
 
   return {
     root,
     groups,
     denied,
+    errors,
     sources: [...sk.sources, ...pl.sources],
     table,
   }
