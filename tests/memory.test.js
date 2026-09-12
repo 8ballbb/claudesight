@@ -40,11 +40,16 @@ describe('readMemory', () => {
     expect(all.some((n) => n.cycle)).toBe(true)
   })
 
-  it('stops at depth 4 per the documented import limit', () => {
+  it('follows imports four levels deep, then stops with a depthExceeded stub', () => {
     for (let i = 0; i < 8; i++) {
       fs.writeFileSync(path.join(dir, `c${i}.md`), `@c${i + 1}.md\n`)
     }
     fs.writeFileSync(path.join(dir, 'c8.md'), 'end\n')
-    expect(flattenMemory(readMemory(path.join(dir, 'c0.md'))).length).toBeLessThanOrEqual(5)
+
+    const all = flattenMemory(readMemory(path.join(dir, 'c0.md')))
+    const read = all.filter((n) => n.content.length > 0).map((n) => path.basename(n.path))
+
+    expect(read).toEqual(['c0.md', 'c1.md', 'c2.md', 'c3.md', 'c4.md'])
+    expect(all.filter((n) => n.depthExceeded)).toHaveLength(1)
   })
 })

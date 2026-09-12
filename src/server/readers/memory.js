@@ -18,7 +18,7 @@ export function readMemory(filePath, opts = {}) {
   if (seen.has(resolved)) {
     return { path: resolved, state: 'ok', content: '', bytes: 0, imports: [], cycle: true }
   }
-  if (depth >= MAX_DEPTH) {
+  if (depth > MAX_DEPTH) {
     return { path: resolved, state: 'ok', content: '', bytes: 0, imports: [], depthExceeded: true }
   }
   seen.add(resolved)
