@@ -5,7 +5,25 @@ import { classify } from './writability.js'
 import { execChanges } from './execgate.js'
 
 const hash = (buf) => crypto.createHash('sha256').update(buf).digest('hex')
-const pendingConfirmations = new Map()
+
+// The confirmation token is a receipt for one exact change, not a capability.
+// Binding it to (target, content) makes confirm-then-swap impossible: a token
+// issued for one body will not validate a different body.
+const CONFIRM_SECRET = crypto.randomBytes(32)
+
+function confirmTokenFor(target, content) {
+  return crypto
+    .createHmac('sha256', CONFIRM_SECRET)
+    .update(target)
+    .update('\0')
+    .update(content)
+    .digest('hex')
+}
+
+function confirmTokenMatches(supplied, expected) {
+  if (typeof supplied !== 'string' || supplied.length !== expected.length) return false
+  return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+}
 
 export function readForEdit(target) {
   const buf = fs.readFileSync(target)
@@ -67,13 +85,10 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
     try { parsedBefore = JSON.parse(fs.readFileSync(target, 'utf8')) } catch { /* treat as empty */ }
     const changes = execChanges(parsedBefore, parsedAfter)
     if (changes.length > 0) {
-      const expected = pendingConfirmations.get(target)
-      if (!confirmToken || confirmToken !== expected) {
-        const token = crypto.randomBytes(16).toString('hex')
-        pendingConfirmations.set(target, token)
-        return { ok: false, error: 'confirmation_required', changes, confirmToken: token }
+      const expected = confirmTokenFor(target, content)
+      if (!confirmTokenMatches(confirmToken, expected)) {
+        return { ok: false, error: 'confirmation_required', changes, confirmToken: expected }
       }
-      pendingConfirmations.delete(target)
     }
   }
 

