@@ -14,11 +14,19 @@ beforeEach(() => {
 
 const req = (over = {}) => ({
   method: 'GET',
-  headers: { origin: ORIGIN, host: `127.0.0.1:${PORT}`, cookie, ...over.headers },
   ...over,
+  headers: { origin: ORIGIN, host: `127.0.0.1:${PORT}`, cookie, ...over.headers },
 })
 
 describe('security.check', () => {
+  it('the request helper merges header overrides onto the defaults', () => {
+    const r = req({ method: 'POST', headers: { 'content-type': 'application/json' } })
+    expect(r.headers.origin).toBe(ORIGIN)
+    expect(r.headers.host).toBe(`127.0.0.1:${PORT}`)
+    expect(r.headers.cookie).toBe(cookie)
+    expect(r.headers['content-type']).toBe('application/json')
+  })
+
   it('accepts a well-formed request', () => {
     expect(sec.check(req()).ok).toBe(true)
   })
