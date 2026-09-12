@@ -25,17 +25,21 @@ export function createSecurity({ port }) {
     check(req) {
       const h = req.headers ?? {}
 
-      if (h.origin !== expectedOrigin) {
+      const isSafeMethod = req.method === 'GET' || req.method === 'HEAD'
+      if (h.origin !== undefined) {
+        if (h.origin !== expectedOrigin) return { ok: false, status: 403, reason: 'origin' }
+      } else if (!isSafeMethod) {
+        // Browsers always send Origin on non-safe methods; its absence there is a non-browser client.
         return { ok: false, status: 403, reason: 'origin' }
       }
       if (h.host !== expectedHost) {
         return { ok: false, status: 403, reason: 'host' }
       }
       const supplied = /(?:^|;\s*)atlas=([^;]+)/.exec(h.cookie ?? '')?.[1]
-      if (!supplied || supplied.length !== token.length) {
+      if (!supplied || !/^[0-9a-f]{64}$/.test(supplied)) {
         return { ok: false, status: 403, reason: 'token' }
       }
-      if (!crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(token))) {
+      if (!crypto.timingSafeEqual(Buffer.from(supplied, 'utf8'), Buffer.from(token, 'utf8'))) {
         return { ok: false, status: 403, reason: 'token' }
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') {

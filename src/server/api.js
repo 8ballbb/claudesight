@@ -13,13 +13,14 @@ export function buildInventory(root) {
   const groups = []
   const denied = []
 
-  const add = (kind, entries) => {
+  const add = (groupKind, entries) => {
     const items = entries.map((e) => {
+      const kind = e.artifactKind ?? groupKind
       const id = handleFor(e.path)
       table.set(id, { path: e.path, kind })
       return { id, kind, ...e, writability: classify({ path: e.path, kind, root }) }
     })
-    groups.push({ kind, items })
+    groups.push({ kind: groupKind, items })
   }
 
   const mem = readMemory(path.join(root, 'CLAUDE.md'))
@@ -34,7 +35,7 @@ export function buildInventory(root) {
 
   const scripts = s.result.state === 'ok' ? extractScripts(s.result.value, root) : []
   add('scripts', scripts.filter((r) => r.scriptPath).map((r) => ({
-    path: r.scriptPath, label: path.basename(r.scriptPath), keyPath: r.keyPath, command: r.command,
+    path: r.scriptPath, label: path.basename(r.scriptPath), keyPath: r.keyPath, command: r.command, artifactKind: r.kind,
   })))
 
   const sk = readSkills(root)
@@ -56,8 +57,4 @@ export function buildInventory(root) {
     sources: [...sk.sources, ...pl.sources],
     table,
   }
-}
-
-export function makeScriptKind(kind) {
-  return kind === 'scripts' ? 'hookScript' : kind
 }

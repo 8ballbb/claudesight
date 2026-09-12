@@ -35,8 +35,9 @@ describe('security.check', () => {
     expect(sec.check(req({ headers: { cookie: undefined } })).status).toBe(403)
   })
 
-  it('fails closed when Origin is absent', () => {
-    expect(sec.check(req({ headers: { origin: undefined } })).status).toBe(403)
+  it('allows GET with Origin absent but rejects POST with Origin absent', () => {
+    expect(sec.check(req({ headers: { origin: undefined } })).ok).toBe(true)
+    expect(sec.check(req({ method: 'POST', headers: { origin: undefined, 'content-type': 'application/json' } })).status).toBe(403)
   })
 
   it('rejects a cross-origin request', () => {
@@ -78,5 +79,20 @@ describe('security.check', () => {
     expect(h['Content-Security-Policy']).not.toContain('unsafe-inline')
     expect(h['Referrer-Policy']).toBe('no-referrer')
     expect(h['X-Content-Type-Options']).toBe('nosniff')
+  })
+
+  it('allows a same-origin GET with no Origin header, as browsers send', () => {
+    const r = sec.check(req({ headers: { origin: undefined } }))
+    expect(r.ok).toBe(true)
+  })
+
+  it('still rejects a POST with no Origin header', () => {
+    const r = sec.check(req({ method: 'POST', headers: { origin: undefined, 'content-type': 'application/json' } }))
+    expect(r.status).toBe(403)
+  })
+
+  it('rejects a malformed cookie without throwing', () => {
+    expect(() => sec.check(req({ headers: { cookie: 'atlas=' + 'Ã'.repeat(64) } }))).not.toThrow()
+    expect(sec.check(req({ headers: { cookie: 'atlas=' + 'Ã'.repeat(64) } })).status).toBe(403)
   })
 })

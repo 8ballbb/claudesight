@@ -64,11 +64,37 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
   if (verdict.class === 'redirect') {
     return { ok: false, error: 'redirect', reason: verdict.reason, redirectTo: verdict.redirectTo }
   }
-  if (verdict.class === 'guarded' && !confirmToken) {
-    return { ok: false, error: 'guarded', reason: verdict.reason }
+  if (verdict.class === 'guarded') {
+    const expected = confirmTokenFor(target, content)
+    if (!confirmTokenMatches(confirmToken, expected)) {
+      return { ok: false, error: 'guarded', reason: verdict.reason, confirmToken: expected }
+    }
   }
   if (hasSymlinkComponent(target, root)) {
     return { ok: false, error: 'symlink', reason: 'Path contains a symlink; refusing to write through it' }
+  }
+
+  // An exec-class target IS the executable — its whole body is the command,
+  // so it needs the same confirmation a command-bearing settings key does.
+  if (verdict.class === 'exec') {
+    let previous = null
+    try { previous = fs.readFileSync(target, 'utf8') } catch { /* new file */ }
+    if (previous !== content) {
+      const expected = confirmTokenFor(target, content)
+      if (!confirmTokenMatches(confirmToken, expected)) {
+        return {
+          ok: false,
+          error: 'confirmation_required',
+          changes: [{
+            keyPath: path.basename(target),
+            before: previous,
+            after: content,
+            reason: 'executable-file-body',
+          }],
+          confirmToken: expected,
+        }
+      }
+    }
   }
 
   let parsedAfter = null

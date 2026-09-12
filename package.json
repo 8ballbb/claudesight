@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "type": "module",
   "bin": { "claude-atlas": "./bin/claude-atlas.js" },
+  "files": ["bin", "src", "dist"],
   "engines": { "node": ">=20" },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "prepack": "npm run build",
     "test": "vitest run",
     "lint": "eslint src tests"
   },

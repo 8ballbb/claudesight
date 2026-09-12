@@ -61,4 +61,12 @@ describe('api', () => {
     const r = await call('/api/read', { method: 'POST', body: JSON.stringify({ id: 'deadbeefdeadbeef' }) })
     expect(r.status).toBe(404)
   })
+
+  it('classifies a hook script body as exec, matching what the writer enforces', async () => {
+    const inv = await (await call('/api/inventory')).json()
+    const scripts = inv.groups.find((g) => g.kind === 'scripts')
+    if (!scripts || scripts.items.length === 0) return
+    expect(scripts.items[0].kind).toMatch(/hookScript|statusLineScript/)
+    expect(scripts.items[0].writability.class).toBe('exec')
+  })
 })
