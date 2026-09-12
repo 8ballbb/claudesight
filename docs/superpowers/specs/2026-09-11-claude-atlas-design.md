@@ -617,6 +617,6 @@ real-machine verification:
     installed**, plus duplicates. Only cache holds loadable copies — `enabledPlugins` →
     `installed_plugins.json` → `installPath` all point there. §1 of revision 1 warned that
     "a naive scan double-counts everything" and then quoted the double-counted figure in
-    the same breath. Corrected in §1, §3, §11 and in the Phase 1 plan.
+    the same breath. Corrected in §1, §11 and in the Phase 1 plan.
 
 Open: none blocking. Name remains a working title.
