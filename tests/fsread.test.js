@@ -72,13 +72,21 @@ describe('walkForSafe', () => {
   it('respects maxDepth', () => {
     expect(walkForSafe(path.join(tmp, 'deep'), 'TARGET.md', 1).found).toHaveLength(0)
   })
-  it('finds a target reachable only through a symlinked directory', () => {
-    const realDir = path.join(tmp, 'symreal', 'nested')
-    fs.mkdirSync(realDir, { recursive: true })
-    fs.writeFileSync(path.join(realDir, 'TARGET.md'), 'via symlink')
-    fs.symlinkSync(path.join(tmp, 'symreal'), path.join(tmp, 'symlink-dir'))
-    const r = walkForSafe(path.join(tmp, 'symlink-dir'), 'TARGET.md', 5)
-    expect(r.found).toHaveLength(1)
+  it('finds a target reachable only through a symlink pointing outside the walked tree', () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-symtarget-'))
+    try {
+      fs.mkdirSync(path.join(outside, 'nested'), { recursive: true })
+      fs.writeFileSync(path.join(outside, 'nested', 'TARGET.md'), 'via symlink')
+      const walked = path.join(tmp, 'symroot')
+      fs.mkdirSync(walked, { recursive: true })
+      fs.symlinkSync(outside, path.join(walked, 'skills'))
+
+      const r = walkForSafe(walked, 'TARGET.md', 5)
+      expect(r.found).toHaveLength(1)
+      expect(r.denied).toEqual([])
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true })
+    }
   })
   it('terminates on a symlink cycle', () => {
     const cyc = path.join(tmp, 'cyc')
