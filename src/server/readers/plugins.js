@@ -7,15 +7,21 @@ export function readPlugins(root) {
   const sources = [{ label: 'installed_plugins', dir: installedPath, state: installed.state }]
   if (installed.state !== 'ok') return { plugins: [], sources }
 
-  const settings = readJsonSafe(path.join(root, 'settings.json'))
+  const settingsPath = path.join(root, 'settings.json')
+  const settings = readJsonSafe(settingsPath)
+  sources.push({ label: 'settings', dir: settingsPath, state: settings.state })
   const enabledMap = settings.state === 'ok' ? (settings.value.enabledPlugins ?? {}) : {}
 
   const plugins = []
   for (const [id, instances] of Object.entries(installed.value.plugins ?? {})) {
     for (const inst of instances) {
       const [name, marketplace] = id.split('@')
-      const manifest = readJsonSafe(path.join(inst.installPath, '.claude-plugin', 'plugin.json'))
+      const manifestPath = path.join(inst.installPath, '.claude-plugin', 'plugin.json')
+      const manifest = readJsonSafe(manifestPath)
       const manifestVersion = manifest.state === 'ok' ? (manifest.value.version ?? null) : null
+      // 'ok' here means the file parsed; a parsed manifest with no version field
+      // is still 'ok' — manifestVersion being null is what says it lacked one.
+      const manifestState = manifest.state
       const recordedVersion = inst.version ?? null
 
       let drift = 'none'
@@ -29,8 +35,10 @@ export function readPlugins(root) {
         id,
         name,
         marketplace,
+        scope: inst.scope ?? null,
         recordedVersion,
         manifestVersion,
+        manifestState,
         installPath: inst.installPath,
         enabled: enabledMap[id] === true,
         drift,

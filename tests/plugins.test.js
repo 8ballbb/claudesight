@@ -61,4 +61,48 @@ describe('readPlugins', () => {
     expect(byName.spyglass).toBe(true)
     expect(byName['feature-dev']).toBe(false)
   })
+
+  it('distinguishes a corrupt manifest from an absent one', () => {
+    const mk = (name, body) => {
+      const p = path.join(root, 'plugins/cache/mk', name, '1.0.0')
+      fs.mkdirSync(path.join(p, '.claude-plugin'), { recursive: true })
+      if (body !== null) fs.writeFileSync(path.join(p, '.claude-plugin/plugin.json'), body)
+      return p
+    }
+    const broken = mk('broken', '{ oops not json')
+    const missing = mk('missing', null)
+    const ipPath = path.join(root, 'plugins/installed_plugins.json')
+    const ip = JSON.parse(fs.readFileSync(ipPath, 'utf8'))
+    ip.plugins['broken@mk'] = [{ scope: 'user', installPath: broken, version: '1.0.0' }]
+    ip.plugins['missing@mk'] = [{ scope: 'user', installPath: missing, version: '1.0.0' }]
+    fs.writeFileSync(ipPath, JSON.stringify(ip))
+
+    const byName = Object.fromEntries(readPlugins(root).plugins.map((p) => [p.name, p]))
+    expect(byName.broken.manifestState).toBe('malformed')
+    expect(byName.missing.manifestState).toBe('absent')
+    expect(byName.broken.manifestState).not.toBe(byName.missing.manifestState)
+  })
+
+  it('reports settings.json in sources', () => {
+    const s = readPlugins(root).sources.find((x) => x.label === 'settings')
+    expect(s).toBeTruthy()
+    expect(s.state).toBe('ok')
+  })
+
+  it('does not present a malformed settings.json as all-plugins-disabled without saying so', () => {
+    const sPath = path.join(root, 'settings.json')
+    const saved = fs.readFileSync(sPath, 'utf8')
+    try {
+      fs.writeFileSync(sPath, '{ broken')
+      const r = readPlugins(root)
+      expect(r.plugins.every((p) => p.enabled === false)).toBe(true)
+      expect(r.sources.find((x) => x.label === 'settings').state).toBe('malformed')
+    } finally {
+      fs.writeFileSync(sPath, saved)
+    }
+  })
+
+  it('carries the install scope', () => {
+    expect(readPlugins(root).plugins.every((p) => p.scope === 'user')).toBe(true)
+  })
 })
