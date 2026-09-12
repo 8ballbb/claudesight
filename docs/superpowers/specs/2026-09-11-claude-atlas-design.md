@@ -1,7 +1,7 @@
 # claude-atlas — Design
 
 **Date:** 2026-09-11
-**Revision:** 3 (see §14)
+**Revision:** 4 (see §14)
 **Status:** In review
 **Author:** Andrew Poole (with Claude)
 
@@ -11,7 +11,10 @@
 
 Claude Code's configuration surface has outgrown the ability to inspect it. Measured:
 
-- **75** `SKILL.md` files, **zero** in `~/.claude/skills` — all plugin-delivered
+- **23** active `SKILL.md`, **zero** in `~/.claude/skills` — all plugin-delivered. (75 SKILL.md
+  exist under `~/.claude` in total, but 52 sit in `plugins/marketplaces` — git checkouts
+  holding skills for 35 plugins that are **not installed**. Only `plugins/cache` holds
+  loadable copies. Revisions 1-3 of this spec quoted the naive 75; see §14.)
 - **10** plugins from **6** marketplaces, 5 of them individual GitHub accounts
 - **1** plugin genuinely version-drifted (`spyglass` recorded `0.1.0`, manifest `0.3.3`);
   **3** more with no recorded version at all
@@ -38,7 +41,7 @@ Nothing shows this in one place, at global and project scope, **and lets you edi
 443:    path.join(base, "plugins"),            //   for Cursor ONLY
 ```
 
-It reported **0 skills** when the answer was **75, in a directory it did not look in**.
+It reported **0 skills** when the answer was **23, in a directory it did not look in**.
 
 **Revision 2 of this spec reproduced that exact bug twice**: it placed `memoryStore` at a
 path that does not exist and declared the kind absent, when 5 populated memory directories
@@ -527,8 +530,8 @@ so scope cannot carry the navigation.
 
 | Screen | Content | Phase |
 |---|---|---|
-| **Loaded now** | Every artifact active at user scope, grouped by kind: name, source path, provenance, always-on cost, **inline editor** for freely-editable rows. Renders 75 skills, 10 plugins, the hook *with `format-hook.sh` inline*, statusline script, 2 MCP servers, `settings.json`, `CLAUDE.md` **with `@NOTES.md` resolved** | 1 |
-| **Declared vs used** | Which of 75 skills/13 agents ever fired, joined from transcripts | 2 |
+| **Loaded now** | Every artifact active at user scope, grouped by kind: name, source path, provenance, always-on cost, **inline editor** for freely-editable rows. Renders 23 skills, 10 plugins, the hook *with `format-hook.sh` inline*, statusline script, 2 MCP servers, `settings.json`, `CLAUDE.md` **with `@NOTES.md` resolved** | 1 |
+| **Declared vs used** | Which of the 23 active skills / 13 agents ever fired, joined from transcripts | 2 |
 | **Supply chain** | Plugins + marketplaces: repo, version, commit, drift, which ship hooks | 2 |
 | **Scopes** | Project list per §6.2; inheritance per §6.4 with named winners | 3 |
 | **Sessions** | Transcript list + read-only viewer | 3 |
@@ -604,5 +607,16 @@ domain-accuracy, product). Material changes:
 17. **Cut**: multi-root switcher, three-way merge UI, backup GC, three-tier epistemology,
     `rare-kinds/` per-kind fixtures, golden-sample-per-version parser.
 18. **§5 stack decided** — Vite + React + CSS modules.
+
+**Revision 4 — 2026-09-12 (during implementation).** One correction, found by Task 4's
+real-machine verification:
+
+19. **The skill count was wrong in every prior revision.** §1 claimed 75 active skills.
+    Measured: `plugins/cache` = **23** (the 10 installed plugins), `plugins/marketplaces` =
+    52 more, which are git checkouts holding skills for 35 plugins that are **not
+    installed**, plus duplicates. Only cache holds loadable copies — `enabledPlugins` →
+    `installed_plugins.json` → `installPath` all point there. §1 of revision 1 warned that
+    "a naive scan double-counts everything" and then quoted the double-counted figure in
+    the same breath. Corrected in §1, §3, §11 and in the Phase 1 plan.
 
 Open: none blocking. Name remains a working title.
