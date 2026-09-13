@@ -359,12 +359,13 @@
   gap: 10px;
   cursor: pointer;
   padding: 6px 10px 6px 8px;
-  border-left: 2px solid var(--line);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  transition: background 0.15s, border-color 0.15s;
+  border-radius: var(--radius);
+  transition: background 0.15s;
 }
 
-.bandHead:hover { background: var(--well); border-left-color: var(--line-firm); }
+/* Deliberately no left border. That 2px edge already means "this row is open"
+   one line below, and a second bar in the same column competes with it. */
+.bandHead:hover { background: var(--well); }
 .bandHead:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 
 .bandName {
