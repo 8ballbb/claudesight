@@ -1,0 +1,15 @@
+{
+  "extends": "eslint:recommended",
+  "env": { "node": true, "browser": true, "es2022": true },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
+  "rules": {
+    "no-restricted-properties": ["error",
+      { "property": "innerHTML", "message": "Banned by spec §9.5 — use text nodes or the sanitised markdown renderer." },
+      { "property": "outerHTML", "message": "Banned by spec §9.5." },
+      { "property": "dangerouslySetInnerHTML", "message": "Banned by spec §9.5." }
+    ],
+    "no-restricted-syntax": ["error",
+      { "selector": "JSXAttribute[name.name='dangerouslySetInnerHTML']", "message": "Banned by spec §9.5." }
+    ]
+  }
+}

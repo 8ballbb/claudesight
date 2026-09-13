@@ -1,7 +1,7 @@
 # claude-atlas — Design
 
 **Date:** 2026-09-11
-**Revision:** 3 (see §14)
+**Revision:** 4 (see §14)
 **Status:** In review
 **Author:** Andrew Poole (with Claude)
 
@@ -11,7 +11,10 @@
 
 Claude Code's configuration surface has outgrown the ability to inspect it. Measured:
 
-- **75** `SKILL.md` files, **zero** in `~/.claude/skills` — all plugin-delivered
+- **23** active `SKILL.md`, **zero** in `~/.claude/skills` — all plugin-delivered. (75 SKILL.md
+  exist under `~/.claude` in total, but 52 sit in `plugins/marketplaces` — git checkouts
+  holding skills for 35 plugins that are **not installed**. Only `plugins/cache` holds
+  loadable copies. Revisions 1-3 of this spec quoted the naive 75; see §14.)
 - **10** plugins from **6** marketplaces, 5 of them individual GitHub accounts
 - **1** plugin genuinely version-drifted (`spyglass` recorded `0.1.0`, manifest `0.3.3`);
   **3** more with no recorded version at all
@@ -38,7 +41,7 @@ Nothing shows this in one place, at global and project scope, **and lets you edi
 443:    path.join(base, "plugins"),            //   for Cursor ONLY
 ```
 
-It reported **0 skills** when the answer was **75, in a directory it did not look in**.
+It reported **0 skills** when the answer was **23, in a directory it did not look in**.
 
 **Revision 2 of this spec reproduced that exact bug twice**: it placed `memoryStore` at a
 path that does not exist and declared the kind absent, when 5 populated memory directories
@@ -168,7 +171,7 @@ React + plain CSS modules. No component library, no state manager. ~7 screens.
 
 ```
 npx claude-atlas
-  ├─ Security      nonce→cookie, Origin/Host, CSP, value-shape write gate   (§9)
+  ├─ Security      Origin/Host/JSON gate, CSP, value-shape write gate       (§9)
   ├─ RootResolver  CLAUDE_CONFIG_DIR → $HOME/.claude                        (§6.1)
   ├─ ScopeRegistry reconciles registry ⊕ sessions ⊕ default bounded scan    (§6.2)
   ├─ Oracle        CLI fan-out, bounded concurrency 8                       (§6.3)
@@ -413,19 +416,28 @@ phish the credential. No tunnel, no LAN bind, no remote mode.
 
 ### 9.2 Authentication
 
-The launch URL carries a **single-use nonce**, not the session token. First `GET` exchanges
-it for an `HttpOnly; SameSite=Strict; Path=/` cookie and invalidates the nonce; the SPA
-`history.replaceState`s it out of the address bar. Revision 2 put a long-lived token in the
-URL, which leaks through `Referer` (attacker-supplied marketplace `homepage` links are
-rendered in the UI), through `ps` argv (visible to *other UIDs* — the exact attacker class
-the token defends against), and through terminal scrollback.
+**The URL carries no secret.** The server listens on a fixed port (7717 by default,
+`--port` to change it) and the launch URL is plain `http://127.0.0.1:7717/`.
 
-Every `/api/*` request — **including `GET`** — requires cookie + `Origin` + `Host`. Revision
-2's "GET may be read-only-permissive" carve-out allowed any web page to trigger
-`<img src="http://127.0.0.1:PORT/api/scan?deep=1">`, a cross-origin 8-second disk walk and
+Revisions 2–4 put a credential in the URL: first a long-lived token, then a single-use
+nonce exchanged for an `HttpOnly; SameSite=Strict` cookie. Both are now removed, because
+the credential defended against a threat the other checks already close. A hostile *page*
+never gets past `Origin` and `Host`; a hostile *local process* can read and write
+`~/.claude` directly and never needed the API. What the nonce did accomplish was making
+the launch link one-shot — whoever opened it first claimed the server, which locked the
+author out of their own running instance and forced a restart to mint another.
+
+The remaining checks carry the whole defence, and every `/api/*` request — **including
+`GET`** — is subject to all of them. Revision 2's "GET may be read-only-permissive"
+carve-out allowed any web page to trigger
+`<img src="http://127.0.0.1:PORT/api/scan?deep=1">`, a cross-origin disk walk and
 process-spawn primitive. All side-effecting endpoints are `POST`.
 
-Checks **fail closed**: absent `Origin` → 403; `Host` ≠ `127.0.0.1:<port>` → 403 (reject
+A fixed port is what makes the URL bookmarkable across restarts. On collision the server
+**refuses to move** and names the alternative — a tool whose address silently changes is
+the problem this replaced.
+
+Checks **fail closed**: `Origin` present but not ours → 403, and absent on a write → 403 (browsers always send it on writes, so absence there is a non-browser client); `Host` ≠ `127.0.0.1:<port>` → 403 (reject
 `localhost`, `[::1]`, `127.1`, `0x7f000001`, trailing dot); `Content-Type` not
 `application/json` → 415 **before reading the body**, defeating the `enctype="text/plain"`
 JSON-CSRF. WebSocket/SSE, if used, validate `Origin` on the handshake — and must not fall
@@ -527,8 +539,8 @@ so scope cannot carry the navigation.
 
 | Screen | Content | Phase |
 |---|---|---|
-| **Loaded now** | Every artifact active at user scope, grouped by kind: name, source path, provenance, always-on cost, **inline editor** for freely-editable rows. Renders 75 skills, 10 plugins, the hook *with `format-hook.sh` inline*, statusline script, 2 MCP servers, `settings.json`, `CLAUDE.md` **with `@NOTES.md` resolved** | 1 |
-| **Declared vs used** | Which of 75 skills/13 agents ever fired, joined from transcripts | 2 |
+| **Loaded now** | Every artifact active at user scope, grouped by kind: name, source path, provenance, always-on cost, **inline editor** for freely-editable rows. Renders 23 skills, 10 plugins, the hook *with `format-hook.sh` inline*, statusline script, 2 MCP servers, `settings.json`, `CLAUDE.md` **with `@NOTES.md` resolved** | 1 |
+| **Declared vs used** | Which of the 23 active skills / 13 agents ever fired, joined from transcripts | 2 |
 | **Supply chain** | Plugins + marketplaces: repo, version, commit, drift, which ship hooks | 2 |
 | **Scopes** | Project list per §6.2; inheritance per §6.4 with named winners | 3 |
 | **Sessions** | Transcript list + read-only viewer | 3 |
@@ -604,5 +616,16 @@ domain-accuracy, product). Material changes:
 17. **Cut**: multi-root switcher, three-way merge UI, backup GC, three-tier epistemology,
     `rare-kinds/` per-kind fixtures, golden-sample-per-version parser.
 18. **§5 stack decided** — Vite + React + CSS modules.
+
+**Revision 4 — 2026-09-12 (during implementation).** One correction, found by Task 4's
+real-machine verification:
+
+19. **The skill count was wrong in every prior revision.** §1 claimed 75 active skills.
+    Measured: `plugins/cache` = **23** (the 10 installed plugins), `plugins/marketplaces` =
+    52 more, which are git checkouts holding skills for 35 plugins that are **not
+    installed**, plus duplicates. Only cache holds loadable copies — `enabledPlugins` →
+    `installed_plugins.json` → `installPath` all point there. §1 of revision 1 warned that
+    "a naive scan double-counts everything" and then quoted the double-counted figure in
+    the same breath. Corrected in §1, §11 and in the Phase 1 plan.
 
 Open: none blocking. Name remains a working title.

@@ -471,7 +471,7 @@ dirs. Spec §6.2, §10."
 
 ---
 
-### Task 4: Skills reader — find the 75 plugin-delivered skills
+### Task 4: Skills reader — find the plugin-delivered skills
 
 **Files:**
 - Create: `src/server/readers/skills.js`
@@ -632,7 +632,7 @@ node -e "import('./src/server/readers/skills.js').then(m => {
   console.log('sample:', JSON.stringify(r.skills[0], null, 2))
 })"
 ```
-Expected: `skills: 75` (±, as plugins update), `user dir state: absent`. **If this prints 0, the task is not done** — that is the exact skill-cabinet failure.
+Expected: `skills: 23` (the 10 installed plugins; count drifts as plugins change), `user dir state: absent`. **If this prints 0, the task is not done** — that is the exact skill-cabinet failure.
 
 - [ ] **Step 6: Commit**
 
@@ -640,7 +640,7 @@ Expected: `skills: 75` (±, as plugins update), `user dir state: absent`. **If t
 git add src/server/readers/skills.js tests/skills.test.js
 git commit -m "feat: skills reader that walks plugins/cache
 
-The user has 0 skills in ~/.claude/skills and 75 under plugins/cache.
+The user has 0 skills in ~/.claude/skills and 23 under plugins/cache.
 Reports the missing user dir as absent, not as zero. Spec §4.1, §10."
 ```
 
@@ -2591,7 +2591,7 @@ Expected: all test files pass; no skipped suites.
 
 Run: `node bin/claude-atlas.js`
 Then open the printed URL. Confirm:
-- skills group shows **~75** items, each attributed to a plugin
+- skills group shows **~23** items, each attributed to a plugin
 - a note reads *"No skills directory — nothing is configured there"* (not "0 skills")
 - memory group shows **CLAUDE.md** *and* **NOTES.md**
 - scripts group shows **format-hook.sh** and **statusline-command.sh**
