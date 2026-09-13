@@ -62,4 +62,9 @@ Node 20 or later.
 
 `docs/superpowers/specs/2026-09-11-claude-atlas-design.md` is the authority on behaviour
 and is kept current with revision notes. `CLAUDE.md` records the invariants that are easy
-to break and expensive to notice.
+to break and expensive to notice. Plans under `docs/superpowers/plans/completed/` are
+spent history, not guidance.
+
+## Licence
+
+MIT. See `LICENSE`.

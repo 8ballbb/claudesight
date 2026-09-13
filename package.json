@@ -1,10 +1,19 @@
 {
   "name": "claude-atlas",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
-  "bin": { "claude-atlas": "./bin/claude-atlas.js" },
-  "files": ["bin", "src", "dist"],
-  "engines": { "node": ">=20" },
+  "bin": {
+    "claude-atlas": "./bin/claude-atlas.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
