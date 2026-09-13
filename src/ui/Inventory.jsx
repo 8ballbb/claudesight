@@ -44,10 +44,6 @@ const GROUP_LABEL = {
 
 const EDITABLE = new Set(['free', 'exec'])
 
-// Above this many items in one group, the read-only bands start folded: they
-// are the bulk, and they are the part you cannot act on.
-const FOLD_ABOVE = 12
-
 function meta(item) {
   if (item.kind === 'memory') return `${item.bytes} bytes`
   if (item.kind === 'settings') return `${item.keys} keys`
@@ -163,8 +159,10 @@ function Rows({ items, openId, onOpen }) {
   )
 }
 
-function Band({ band, stateKey, defaultOpen, openId, onOpen }) {
-  const [open, toggle] = useOpen(stateKey, defaultOpen)
+// Everything starts folded. The page opens as a table of contents; what you
+// expand is remembered, so the layout you arrange is the one you come back to.
+function Band({ band, stateKey, openId, onOpen }) {
+  const [open, toggle] = useOpen(stateKey, false)
   const bodyId = `band-${stateKey.replace(/[^a-z0-9]+/gi, '-')}`
   return (
     <div className={s.band}>
@@ -180,11 +178,8 @@ function Band({ band, stateKey, defaultOpen, openId, onOpen }) {
 }
 
 function Group({ scope, group, openId, onOpen, extras }) {
-  const [open, toggle] = useOpen(`${scope}:${group.kind}`, true)
+  const [open, toggle] = useOpen(`${scope}:${group.kind}`, false)
   const bands = bandsFor(group.items)
-  // Folding every band at once would hide a whole kind behind a click, which
-  // is the complaint that prompted this. The largest band always stays open.
-  const firstLocked = bands.findIndex((b) => b.key !== 'yours')
   const editable = group.items.filter((i) => EDITABLE.has(i.writability.class)).length
   const locked = group.items.length - editable
   const split = editable && locked
@@ -210,12 +205,11 @@ function Group({ scope, group, openId, onOpen, extras }) {
           {extras}
           {plain
             ? <Rows items={bands[0].items} openId={openId} onOpen={onOpen} />
-            : bands.map((band, i) => (
+            : bands.map((band) => (
               <Band
                 key={band.key}
                 band={band}
                 stateKey={`${scope}:${group.kind}:${band.key}`}
-                defaultOpen={band.key === 'yours' || group.items.length <= FOLD_ABOVE || i === firstLocked}
                 openId={openId}
                 onOpen={onOpen}
               />
