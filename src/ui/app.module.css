@@ -293,9 +293,25 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  margin: 0;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
+  font-weight: inherit;
+  font-size: inherit;
 }
+
+.groupToggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 2px 6px 2px 2px;
+  border-radius: var(--radius);
+}
+
+.groupToggle:hover .groupName { color: var(--ink); }
+.groupToggle:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
 
 .groupName {
   font-family: var(--ui);
@@ -305,10 +321,76 @@
   color: var(--dim);
   font-weight: 600;
   margin: 0;
+  transition: color 0.15s;
 }
+
+.caret {
+  display: inline-block;
+  width: 10px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--dim);
+  transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.caret[data-open] { transform: rotate(90deg); }
 
 .groupCount { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .groupRule { flex: 1; height: 1px; background: var(--line); }
+
+.groupSplit {
+  font-family: var(--ui);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* ── bands: one per owner, because ownership decides editability ───────── */
+
+.band { margin-top: 10px; }
+
+.bandHead {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 10px 6px 8px;
+  border-left: 2px solid var(--line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.bandHead:hover { background: var(--well); border-left-color: var(--line-firm); }
+.bandHead:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+.bandName {
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  font-weight: 600;
+}
+
+.bandCount {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.bandNote {
+  font-family: var(--ui);
+  font-size: 10px;
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+
+.band .rows { padding-left: 8px; }
+
 .rows { list-style: none; margin: 0; padding: 0; }
 
 .newBtn {

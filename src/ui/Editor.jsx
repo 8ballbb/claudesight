@@ -6,7 +6,7 @@ import s from './app.module.css'
 const WHY = {
   redirect: {
     title: 'Read-only — saving is refused',
-    text: 'This is the installed copy, inside the plugin cache. "claude plugin update" overwrites that directory wholesale, so an edit here would be reverted the next time the plugin updates — which is why the app blocks it rather than letting you lose work later. To change it for real, edit the marketplace checkout below, or copy the file into your own skills directory.',
+    text: 'An edit here would be reverted, which is why the app refuses the save rather than letting you lose the work later.',
   },
   readonly: {
     title: 'Read-only — saving is refused',
@@ -16,6 +16,15 @@ const WHY = {
     title: 'Protected — saving is refused',
     text: 'Hand-editing this breaks whatever depends on it: an edited transcript stops resuming, and ~/.claude.json holds your sign-in session. Viewing only, in Phase 1.',
   },
+}
+
+// The class says saving is refused; the item's own reason says by what, and
+// those differ — a plugin update and a claude.ai sync are not the same thing.
+export function whyFor(item) {
+  const base = WHY[item.writability.class]
+  if (!base) return null
+  const reason = item.writability.class === 'redirect' && item.writability.reason
+  return reason ? { ...base, text: `${reason}. ${base.text}` } : base
 }
 
 const READ_ERROR = {
@@ -39,6 +48,17 @@ function factsFor(item, doc) {
   if (item.kind === 'skill') {
     return [['origin', item.origin], ['plugin', item.plugin], ['description', item.description]]
       .filter(([, v]) => v)
+  }
+  if (item.kind === 'agent' || item.kind === 'command') {
+    return [
+      // The handle you actually type. Plugin artifacts are namespaced by their
+      // plugin, so the file's own name is not what invokes it.
+      ['invoke as', item.invocable && (item.kind === 'command' ? `/${item.invocable}` : item.invocable)],
+      ['origin', item.origin],
+      ['plugin', item.plugin],
+      ['model', item.model],
+      ['description', item.description],
+    ].filter(([, v]) => v)
   }
   if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
     return [['bound to', item.keyPath], ['command', item.command]].filter(([, v]) => v)
@@ -152,7 +172,7 @@ export default function Editor({ item, post, onClose, onSaved }) {
   }
 
   const facts = factsFor(item, doc)
-  const why = WHY[cls]
+  const why = whyFor(item)
   const dirty = doc && text !== doc.content
 
   return (
@@ -193,7 +213,14 @@ export default function Editor({ item, post, onClose, onSaved }) {
           <div className={`${s.why} ${s.flat}`}>
             <p className={s.whyTitle}>{why.title}</p>
             <p className={s.whyText}>{why.text}</p>
-            {item.writability.redirectTo && <code className={s.cmd}>{item.writability.redirectTo}</code>}
+            {item.writability.redirectTo && (
+              <>
+                {/* Not advice to edit — the app refuses writes there too. It is
+                    where the copy came from, which is the useful fact. */}
+                <p className={s.whyText}>Installed from:</p>
+                <code className={s.cmd}>{item.writability.redirectTo}</code>
+              </>
+            )}
             {item.kind === 'plugin' && <code className={s.cmd}>claude plugin update {item.label}</code>}
           </div>
         )}

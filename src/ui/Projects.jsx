@@ -105,7 +105,7 @@ export default function Projects({ post }) {
             <p className={s.path}>{selected.path}</p>
             {!inv && <p className={s.loading}>Reading…</p>}
             {inv && <Notices inv={inv} />}
-            {inv && <Inventory inv={inv} openId={open?.id} onOpen={setOpen} />}
+            {inv && <Inventory inv={inv} openId={open?.id} onOpen={setOpen} scope="project" />}
           </section>
         )}
       </div>
