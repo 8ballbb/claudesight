@@ -18,6 +18,48 @@ const SOURCE_NOTE = {
   malformed: (label) => `${label} could not be parsed`,
 }
 
+const THEMES = [
+  ['Instrument', [['instrument-dark', 'Dark'], ['instrument-light', 'Light']]],
+  ['Cyberpunk', [['cyber-dark', 'Dark'], ['cyber-light', 'Light']]],
+  ['Pastels', [['pastel-dark', 'Dark'], ['pastel-light', 'Light']]],
+]
+
+const THEME_KEY = 'atlas.theme'
+const DEFAULT_THEME = 'instrument-dark'
+const VALID = new Set(THEMES.flatMap(([, opts]) => opts.map(([v]) => v)))
+
+function ThemePicker() {
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(THEME_KEY)
+      if (saved && VALID.has(saved)) return saved
+    } catch { /* storage blocked — fall through to the default */ }
+    return DEFAULT_THEME
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try { window.localStorage.setItem(THEME_KEY, theme) } catch { /* non-fatal */ }
+  }, [theme])
+
+  return (
+    <select
+      className={s.themePick}
+      value={theme}
+      onChange={(e) => setTheme(e.target.value)}
+      aria-label="Colour theme"
+    >
+      {THEMES.map(([label, opts]) => (
+        <optgroup key={label} label={label}>
+          {opts.map(([value, mode]) => (
+            <option key={value} value={value}>{label} · {mode}</option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  )
+}
+
 const CLASS_CHIP = {
   free: s.free,
   exec: s.exec,
@@ -112,6 +154,7 @@ export default function App() {
         <span className={s.tally}>
           <b>{total}</b> artifacts · <b>{editable}</b> editable
         </span>
+        <ThemePicker />
       </header>
 
       {notes.length > 0 && (
