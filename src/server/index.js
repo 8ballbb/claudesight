@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createSecurity } from './security.js'
 import { buildInventory } from './api.js'
 import { readForEdit, writeArtifact } from './writer.js'
+import { listVersions, createVersion, readVersion, deleteVersion } from './versions.js'
 
 const json = (res, status, body, headers = {}) => {
   res.writeHead(status, { 'content-type': 'application/json', ...headers })
@@ -103,6 +104,66 @@ export function createServer({ root, distDir }) {
             confirmToken: body.confirmToken,
           })
           return json(res, result.ok ? 200 : 409, result)
+        }
+
+        // ── versions ──────────────────────────────────────────────────────
+        // Explicit restore points. Metadata only over the wire; content is
+        // never listed, only restored.
+        if (url.pathname.startsWith('/api/versions') && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          if (!inventory) inventory = buildInventory(root)
+          const entry = inventory.table.get(body.id)
+          if (!entry) return json(res, 404, { error: 'unknown id' })
+
+          if (url.pathname === '/api/versions') {
+            return json(res, 200, { versions: listVersions(entry.path) })
+          }
+
+          if (url.pathname === '/api/versions/create') {
+            const r = createVersion(entry.path, body.label)
+            return json(res, r.ok ? 200 : 409, r)
+          }
+
+          if (url.pathname === '/api/versions/delete') {
+            const r = deleteVersion(entry.path, body.versionId)
+            return json(res, r.ok ? 200 : 404, r)
+          }
+
+          if (url.pathname === '/api/versions/restore') {
+            const content = readVersion(entry.path, body.versionId)
+            if (content === null) return json(res, 404, { error: 'unknown-version' })
+
+            // The inventory is a scan-time snapshot; the file may be gone.
+            let live
+            try {
+              live = readForEdit(entry.path)
+            } catch {
+              return json(res, 409, {
+                ok: false,
+                error: 'missing',
+                reason: 'That file no longer exists. Reload to rescan.',
+              })
+            }
+            if (live.content === content) {
+              return json(res, 200, { ok: true, unchanged: true })
+            }
+
+            // Restoring is a write like any other: classification, validation
+            // and the executable-value confirmation all still apply, so a
+            // rollback cannot be used to slip past the gate.
+            const result = writeArtifact({
+              target: entry.path,
+              content,
+              etag: live.etag,
+              kind: entry.kind,
+              root,
+              confirmToken: body.confirmToken,
+            })
+            return json(res, result.ok ? 200 : 409, result)
+          }
+
+          return json(res, 404, { error: 'not found' })
         }
 
         if (distDir && req.method === 'GET') {

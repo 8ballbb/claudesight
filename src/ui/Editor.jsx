@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import s from './app.module.css'
 
-// Why a thing cannot be edited, in plain language. A dead read-only box with no
-// explanation reads as a broken app; these classes are deliberate.
 // State what the app DOES, not what would hypothetically happen. Saving is
 // refused outright for all three of these — the text below the box is view-only.
 const WHY = {
@@ -26,8 +24,6 @@ const READ_ERROR = {
   'unknown id': 'This artifact is no longer in the inventory. Reload to rescan.',
 }
 
-// `doc` is the live read; prefer it over the inventory snapshot, which goes
-// stale the moment a save lands.
 function factsFor(item, doc) {
   if (item.kind === 'plugin') {
     return [
@@ -41,11 +37,8 @@ function factsFor(item, doc) {
     ].filter(([, v]) => v !== null && v !== undefined)
   }
   if (item.kind === 'skill') {
-    return [
-      ['origin', item.origin],
-      ['plugin', item.plugin],
-      ['description', item.description],
-    ].filter(([, v]) => v)
+    return [['origin', item.origin], ['plugin', item.plugin], ['description', item.description]]
+      .filter(([, v]) => v)
   }
   if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
     return [['bound to', item.keyPath], ['command', item.command]].filter(([, v]) => v)
@@ -57,6 +50,10 @@ function factsFor(item, doc) {
   return []
 }
 
+const when = (iso) => {
+  try { return new Date(iso).toLocaleString() } catch { return iso }
+}
+
 export default function Editor({ item, post, onClose, onSaved }) {
   const [doc, setDoc] = useState(null)
   const [readErr, setReadErr] = useState(null)
@@ -64,6 +61,10 @@ export default function Editor({ item, post, onClose, onSaved }) {
   const [status, setStatus] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
+
+  const [versions, setVersions] = useState(null)
+  const [label, setLabel] = useState('')
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   const cls = item.writability.class
   const editable = cls === 'free' || cls === 'exec'
@@ -80,25 +81,74 @@ export default function Editor({ item, post, onClose, onSaved }) {
     return () => { live = false }
   }, [item.id, openable, post])
 
-  const save = async (confirmToken) => {
-    setBusy(true)
-    setStatus(null)
-    const r = await post('/api/write', { id: item.id, content: text, etag: doc.etag, confirmToken })
-    setBusy(false)
-    if (r.ok) {
+  const loadVersions = useCallback(() => {
+    if (!editable) return
+    post('/api/versions', { id: item.id }).then((r) => setVersions(r.versions ?? []))
+  }, [item.id, editable, post])
+
+  useEffect(loadVersions, [loadVersions])
+
+  const refreshDoc = async () => {
+    const fresh = await post('/api/read', { id: item.id })
+    if (!fresh.error) { setDoc(fresh); setText(fresh.content) }
+  }
+
+  const apply = async (result, okText) => {
+    if (result.ok) {
       setConfirm(null)
-      setStatus({ tone: 'good', text: `Saved. Backup: ${r.backup.split('/').pop()}` })
-      const fresh = await post('/api/read', { id: item.id })
-      if (!fresh.error) setDoc(fresh)
+      setStatus({ tone: 'good', text: okText(result) })
+      await refreshDoc()
       onSaved?.()
       return
     }
-    if (r.error === 'confirmation_required') { setConfirm(r); return }
-    if (r.error === 'conflict') {
+    if (result.error === 'confirmation_required') { setConfirm(result); return }
+    if (result.error === 'conflict') {
       setStatus({ tone: 'bad', text: 'Changed on disk since you opened it. Reload to see the current version.' })
       return
     }
-    setStatus({ tone: 'bad', text: `${r.error}${r.reason ? ` — ${r.reason}` : ''}` })
+    setStatus({ tone: 'bad', text: `${result.error}${result.reason ? ` — ${result.reason}` : ''}` })
+  }
+
+  const save = async (confirmToken) => {
+    setBusy(true); setStatus(null)
+    const r = await post('/api/write', { id: item.id, content: text, etag: doc.etag, confirmToken })
+    setBusy(false)
+    await apply(r, (x) => `Saved. Backup: ${x.backup.split('/').pop()}`)
+  }
+
+  const saveVersion = async () => {
+    setBusy(true); setStatus(null)
+    const r = await post('/api/versions/create', { id: item.id, label })
+    setBusy(false)
+    if (r.ok) {
+      setLabel('')
+      setStatus({ tone: 'good', text: 'Version saved.' })
+      loadVersions()
+    } else {
+      setStatus({ tone: 'bad', text: `Could not save a version: ${r.error}` })
+    }
+  }
+
+  const restore = async (versionId, confirmToken) => {
+    setBusy(true); setStatus(null)
+    const r = await post('/api/versions/restore', { id: item.id, versionId, confirmToken })
+    setBusy(false)
+    if (r.ok && r.unchanged) {
+      setStatus({ tone: 'good', text: 'Already identical to that version — nothing written.' })
+      return
+    }
+    // Carry the version id so the confirmation button knows to restore, not save.
+    if (r.error === 'confirmation_required') { setConfirm({ ...r, versionId }); return }
+    await apply(r, (x) => `Restored. Backup of the previous content: ${x.backup.split('/').pop()}`)
+  }
+
+  const removeVersion = async (versionId) => {
+    setBusy(true)
+    const r = await post('/api/versions/delete', { id: item.id, versionId })
+    setBusy(false)
+    setPendingDelete(null)
+    if (r.ok) { setStatus({ tone: 'good', text: 'Version deleted.' }); loadVersions() }
+    else setStatus({ tone: 'bad', text: `Could not delete: ${r.error}` })
   }
 
   const facts = factsFor(item, doc)
@@ -110,7 +160,7 @@ export default function Editor({ item, post, onClose, onSaved }) {
       <div className={s.detailHead}>
         <span className={s.detailTitle}>{item.label}</span>
         <span className={`${s.chip} ${cls === 'free' ? s.free : cls === 'exec' ? s.exec : s.locked}`}>
-          {cls}
+          {cls === 'free' ? 'editable' : cls === 'exec' ? 'executable' : cls === 'guarded' ? 'protected' : 'read-only'}
         </span>
         <button className={s.close} onClick={onClose} aria-label="Close">×</button>
       </div>
@@ -143,12 +193,8 @@ export default function Editor({ item, post, onClose, onSaved }) {
           <div className={`${s.why} ${s.flat}`}>
             <p className={s.whyTitle}>{why.title}</p>
             <p className={s.whyText}>{why.text}</p>
-            {item.writability.redirectTo && (
-              <code className={s.cmd}>{item.writability.redirectTo}</code>
-            )}
-            {item.kind === 'plugin' && (
-              <code className={s.cmd}>claude plugin update {item.label}</code>
-            )}
+            {item.writability.redirectTo && <code className={s.cmd}>{item.writability.redirectTo}</code>}
+            {item.kind === 'plugin' && <code className={s.cmd}>claude plugin update {item.label}</code>}
           </div>
         )}
 
@@ -189,13 +235,16 @@ export default function Editor({ item, post, onClose, onSaved }) {
                   ))}
                 </ul>
                 <div className={s.actions}>
-                  <button className={`${s.btn} ${s.btnDanger}`} disabled={busy}
-                    onClick={() => save(confirm.confirmToken)}>
-                    Install it
+                  <button
+                    className={`${s.btn} ${s.btnDanger}`}
+                    disabled={busy}
+                    onClick={() => (confirm.versionId
+                      ? restore(confirm.versionId, confirm.confirmToken)
+                      : save(confirm.confirmToken))}
+                  >
+                    {confirm.versionId ? 'Restore it' : 'Install it'}
                   </button>
-                  <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setConfirm(null)}>
-                    Cancel
-                  </button>
+                  <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setConfirm(null)}>Cancel</button>
                 </div>
               </div>
             )}
@@ -203,7 +252,7 @@ export default function Editor({ item, post, onClose, onSaved }) {
             {editable && !confirm && (
               <div className={s.actions}>
                 <button className={s.btn} onClick={() => save()} disabled={busy || !dirty}>
-                  {busy ? 'Saving…' : 'Save'}
+                  {busy ? 'Working…' : 'Save'}
                 </button>
                 {dirty && (
                   <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setText(doc.content)}>
@@ -215,6 +264,74 @@ export default function Editor({ item, post, onClose, onSaved }) {
 
             {status && <p className={`${s.status} ${status.tone === 'good' ? s.good : s.bad}`}>{status.text}</p>}
           </div>
+        )}
+
+        {editable && doc && (
+          <section className={s.versions}>
+            <div className={s.groupHead}>
+              <h3 className={s.groupName}>versions</h3>
+              <span className={s.groupCount}>{versions ? versions.length : '…'}</span>
+              <span className={s.groupRule} />
+            </div>
+
+            <div className={s.versionNew}>
+              <input
+                className={s.labelInput}
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="label (optional)"
+                aria-label="Version label"
+                maxLength={200}
+              />
+              <button
+                className={`${s.btn} ${s.btnQuiet}`}
+                onClick={saveVersion}
+                disabled={busy || dirty}
+                title={dirty ? 'Save your edits first — a version snapshots what is on disk' : undefined}
+              >
+                Save version
+              </button>
+            </div>
+            {dirty && (
+              <p className={s.hint}>
+                Unsaved edits. A version snapshots what is on disk, so save first.
+              </p>
+            )}
+
+            {versions && versions.length === 0 && (
+              <p className={s.hint}>No versions yet. Saving one lets you roll back to this exact content later.</p>
+            )}
+
+            {versions && versions.length > 0 && (
+              <ul className={s.versionList}>
+                {versions.map((v) => (
+                  <li key={v.id} className={s.versionRow}>
+                    <div>
+                      <span className={s.versionWhen}>{when(v.at)}</span>
+                      {v.label && <span className={s.versionLabel}>{v.label}</span>}
+                      <span className={s.versionBytes}>{v.bytes} B</span>
+                    </div>
+                    {pendingDelete === v.id ? (
+                      <div className={s.actions}>
+                        <span className={s.deleteWarn}>Deleting a version cannot be undone from this app.</span>
+                        <button className={`${s.btn} ${s.btnDanger}`} disabled={busy}
+                          onClick={() => removeVersion(v.id)}>Delete</button>
+                        <button className={`${s.btn} ${s.btnQuiet}`}
+                          onClick={() => setPendingDelete(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <div className={s.actions}>
+                        <button className={`${s.btn} ${s.btnQuiet}`} disabled={busy}
+                          onClick={() => restore(v.id)}>Restore</button>
+                        <button className={s.linkDanger} disabled={busy}
+                          onClick={() => setPendingDelete(v.id)}>Delete</button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         )}
       </div>
     </aside>
