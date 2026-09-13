@@ -79,3 +79,22 @@ describe('readSkills', () => {
     }
   })
 })
+
+describe('vendored copies', () => {
+  it('ignores skills inside hidden vendor directories', () => {
+    // Plugin repos ship copies for other agents under .cursor/, .codex-plugin/
+    // and similar. Claude Code does not load those.
+    writeSkill(path.join(root, 'plugins/cache/mk/p/1.0.0/.cursor/skills/dupe'),
+      'dupe', 'vendored copy for another agent')
+    writeSkill(path.join(root, 'plugins/cache/mk/p/1.0.0/skills/dupe'),
+      'dupe', 'the real one')
+    const found = readSkills(root).skills.filter((s) => s.name === 'dupe')
+    expect(found).toHaveLength(1)
+    expect(found[0].description).toBe('the real one')
+  })
+
+  it('still finds skills whose plugin lives under a hidden root', () => {
+    // ~/.claude is itself hidden; filtering must be relative to the walk root.
+    expect(readSkills(root).skills.length).toBeGreaterThan(0)
+  })
+})

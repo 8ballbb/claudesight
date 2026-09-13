@@ -38,6 +38,15 @@ function toSkill(root, file, origin) {
   }
 }
 
+// Plugin repos vendor copies of their skills for other agents — .cursor/,
+// .codex-plugin/, .grok-plugin/ and so on. Claude Code does not load those, so
+// counting them double-reports a skill under two paths. Filtering is relative
+// to the walk root: the root itself lives under ~/.claude, which is hidden.
+function visibleUnder(root, files) {
+  return files.filter((file) =>
+    !path.relative(root, file).split(path.sep).some((seg) => seg.startsWith('.')))
+}
+
 export function readSkills(root) {
   const skills = []
   const denied = []
@@ -51,7 +60,7 @@ export function readSkills(root) {
     const w = walkForSafe(userDir, 'SKILL.md', 4)
     denied.push(...w.denied)
     errors.push(...w.errors)
-    for (const f of w.found) {
+    for (const f of visibleUnder(userDir, w.found)) {
       const origin = f.includes(`${path.sep}synced${path.sep}`) ? 'synced' : 'user'
       skills.push(toSkill(root, f, origin))
     }
@@ -64,7 +73,7 @@ export function readSkills(root) {
     const w = walkForSafe(pluginDir, 'SKILL.md', 8)
     denied.push(...w.denied)
     errors.push(...w.errors)
-    for (const f of w.found) skills.push(toSkill(root, f, 'plugin'))
+    for (const f of visibleUnder(pluginDir, w.found)) skills.push(toSkill(root, f, 'plugin'))
   }
 
   skills.sort((a, b) => a.name.localeCompare(b.name))
