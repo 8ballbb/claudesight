@@ -77,6 +77,13 @@ export function createServer({ root, distDir }) {
           if (!inventory) inventory = buildInventory(root)
           const entry = inventory.table.get(id)
           if (!entry) return json(res, 404, { error: 'unknown id' })
+          // Some artifacts are directories or have vanished since the scan.
+          // Say so rather than letting readFileSync throw EISDIR/ENOENT.
+          const st = fs.statSync(entry.path, { throwIfNoEntry: false })
+          if (!st) return json(res, 404, { error: 'missing', path: entry.path, kind: entry.kind })
+          if (!st.isFile()) {
+            return json(res, 400, { error: 'not-a-file', path: entry.path, kind: entry.kind })
+          }
           const { content, etag } = readForEdit(entry.path)
           return json(res, 200, { content, etag, path: entry.path, kind: entry.kind })
         }

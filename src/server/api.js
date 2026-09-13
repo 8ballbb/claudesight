@@ -53,11 +53,27 @@ export function buildInventory(root) {
   })))
 
   const pl = readPlugins(root)
-  add('plugin', pl.plugins.map((p) => ({
-    path: p.installPath, label: p.id, drift: p.drift,
-    recordedVersion: p.recordedVersion, manifestVersion: p.manifestVersion,
-    manifestState: p.manifestState, scope: p.scope, enabled: p.enabled,
-  })))
+  add('plugin', pl.plugins.map((p) => {
+    // A plugin's installPath is a DIRECTORY. Addressing the item by it made
+    // every read throw EISDIR, so point at the manifest when there is one and
+    // mark the item unopenable when there is not.
+    const manifest = path.join(p.installPath, '.claude-plugin', 'plugin.json')
+    const openable = p.manifestState === 'ok'
+    return {
+      path: openable ? manifest : p.installPath,
+      openable,
+      label: p.id,
+      drift: p.drift,
+      recordedVersion: p.recordedVersion,
+      manifestVersion: p.manifestVersion,
+      manifestState: p.manifestState,
+      scope: p.scope,
+      enabled: p.enabled,
+      marketplace: p.marketplace,
+      installPath: p.installPath,
+      repository: p.repository ?? null,
+    }
+  }))
 
   return {
     root,
