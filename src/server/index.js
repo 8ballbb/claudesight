@@ -5,6 +5,7 @@ import { createSecurity } from './security.js'
 import { buildInventory } from './api.js'
 import { readForEdit, writeArtifact } from './writer.js'
 import { listVersions, createVersion, readVersion, deleteVersion } from './versions.js'
+import { createSkill } from './create.js'
 
 const json = (res, status, body, headers = {}) => {
   res.writeHead(status, { 'content-type': 'application/json', ...headers })
@@ -104,6 +105,28 @@ export function createServer({ root, distDir }) {
             confirmToken: body.confirmToken,
           })
           return json(res, result.ok ? 200 : 409, result)
+        }
+
+        if (url.pathname === '/api/create' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          if (body.kind !== 'skill') {
+            return json(res, 400, {
+              ok: false,
+              error: 'unsupported-kind',
+              reason: 'Only skills can be created in this version.',
+            })
+          }
+          const made = createSkill({ root, name: body.name, description: body.description })
+          if (!made.ok) return json(res, 409, made)
+
+          // The scaffold is the one state that cannot be reconstructed once
+          // it has been edited, so it becomes the first restore point.
+          createVersion(made.path, 'created')
+
+          inventory = buildInventory(root)
+          const found = [...inventory.table.entries()].find(([, e]) => e.path === made.path)
+          return json(res, 200, { ...made, id: found ? found[0] : null })
         }
 
         // ── versions ──────────────────────────────────────────────────────

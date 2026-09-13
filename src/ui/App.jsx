@@ -111,10 +111,71 @@ function Chips({ item }) {
   )
 }
 
+function NewSkill({ onCreated }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    const r = await post('/api/create', { kind: 'skill', name: name.trim(), description })
+    setBusy(false)
+    if (!r.ok) { setError(r.reason ?? r.error); return }
+    setOpen(false); setName(''); setDescription('')
+    onCreated(r)
+  }
+
+  if (!open) {
+    return (
+      <button className={s.newBtn} onClick={() => setOpen(true)}>+ new skill</button>
+    )
+  }
+
+  return (
+    <form className={s.newForm} onSubmit={submit}>
+      <input
+        className={s.labelInput}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="name (lower-case, hyphens)"
+        aria-label="Skill name"
+        autoFocus
+      />
+      <input
+        className={s.labelInput}
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="description — when should Claude use this?"
+        aria-label="Skill description"
+      />
+      <button className={s.btn} type="submit" disabled={busy || !name.trim() || !description.trim()}>
+        {busy ? 'Creating…' : 'Create'}
+      </button>
+      <button className={`${s.btn} ${s.btnQuiet}`} type="button" onClick={() => { setOpen(false); setError(null) }}>
+        Cancel
+      </button>
+      {error && <p className={`${s.status} ${s.bad}`}>{error}</p>}
+    </form>
+  )
+}
+
 export default function App() {
   const [inv, setInv] = useState(null)
   const [open, setOpen] = useState(null)
   const [failed, setFailed] = useState(null)
+  const [created, setCreated] = useState(null)
+
+  const afterCreate = async (r) => {
+    const fresh = await fetch('/api/inventory').then((x) => x.json())
+    setInv(fresh)
+    const item = fresh.groups.flatMap((g) => g.items).find((i) => i.id === r.id)
+    if (item) setOpen(item)
+    setCreated(r.warning ?? `Created. Its first version is saved as "created".`)
+  }
 
   const load = useCallback(() => {
     fetch('/api/inventory')
@@ -187,7 +248,14 @@ export default function App() {
                 <h2 className={s.groupName}>{g.kind}</h2>
                 <span className={s.groupCount}>{g.items.length}</span>
                 <span className={s.groupRule} />
+                {g.kind === 'skill' && <NewSkill onCreated={afterCreate} />}
               </div>
+              {g.kind === 'skill' && created && (
+                <p className={s.createdNote}>
+                  {created}
+                  <button className={s.linkQuiet} onClick={() => setCreated(null)}>dismiss</button>
+                </p>
+              )}
               <ul className={s.rows}>
                 {g.items.map((item, i) => (
                   <li
