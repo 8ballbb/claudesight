@@ -171,7 +171,7 @@ React + plain CSS modules. No component library, no state manager. ~7 screens.
 
 ```
 npx claude-atlas
-  ├─ Security      nonce→cookie, Origin/Host, CSP, value-shape write gate   (§9)
+  ├─ Security      Origin/Host/JSON gate, CSP, value-shape write gate       (§9)
   ├─ RootResolver  CLAUDE_CONFIG_DIR → $HOME/.claude                        (§6.1)
   ├─ ScopeRegistry reconciles registry ⊕ sessions ⊕ default bounded scan    (§6.2)
   ├─ Oracle        CLI fan-out, bounded concurrency 8                       (§6.3)
@@ -416,19 +416,28 @@ phish the credential. No tunnel, no LAN bind, no remote mode.
 
 ### 9.2 Authentication
 
-The launch URL carries a **single-use nonce**, not the session token. First `GET` exchanges
-it for an `HttpOnly; SameSite=Strict; Path=/` cookie and invalidates the nonce; the SPA
-`history.replaceState`s it out of the address bar. Revision 2 put a long-lived token in the
-URL, which leaks through `Referer` (attacker-supplied marketplace `homepage` links are
-rendered in the UI), through `ps` argv (visible to *other UIDs* — the exact attacker class
-the token defends against), and through terminal scrollback.
+**The URL carries no secret.** The server listens on a fixed port (7717 by default,
+`--port` to change it) and the launch URL is plain `http://127.0.0.1:7717/`.
 
-Every `/api/*` request — **including `GET`** — requires cookie + `Origin` + `Host`. Revision
-2's "GET may be read-only-permissive" carve-out allowed any web page to trigger
-`<img src="http://127.0.0.1:PORT/api/scan?deep=1">`, a cross-origin 8-second disk walk and
+Revisions 2–4 put a credential in the URL: first a long-lived token, then a single-use
+nonce exchanged for an `HttpOnly; SameSite=Strict` cookie. Both are now removed, because
+the credential defended against a threat the other checks already close. A hostile *page*
+never gets past `Origin` and `Host`; a hostile *local process* can read and write
+`~/.claude` directly and never needed the API. What the nonce did accomplish was making
+the launch link one-shot — whoever opened it first claimed the server, which locked the
+author out of their own running instance and forced a restart to mint another.
+
+The remaining checks carry the whole defence, and every `/api/*` request — **including
+`GET`** — is subject to all of them. Revision 2's "GET may be read-only-permissive"
+carve-out allowed any web page to trigger
+`<img src="http://127.0.0.1:PORT/api/scan?deep=1">`, a cross-origin disk walk and
 process-spawn primitive. All side-effecting endpoints are `POST`.
 
-Checks **fail closed**: absent `Origin` → 403; `Host` ≠ `127.0.0.1:<port>` → 403 (reject
+A fixed port is what makes the URL bookmarkable across restarts. On collision the server
+**refuses to move** and names the alternative — a tool whose address silently changes is
+the problem this replaced.
+
+Checks **fail closed**: `Origin` present but not ours → 403, and absent on a write → 403 (browsers always send it on writes, so absence there is a non-browser client); `Host` ≠ `127.0.0.1:<port>` → 403 (reject
 `localhost`, `[::1]`, `127.1`, `0x7f000001`, trailing dot); `Content-Type` not
 `application/json` → 415 **before reading the body**, defeating the `enctype="text/plain"`
 JSON-CSRF. WebSocket/SSE, if used, validate `Origin` on the handshake — and must not fall

@@ -37,7 +37,9 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json',
   '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' }
 
-export function createServer({ root, distDir }) {
+export const DEFAULT_PORT = 7717
+
+export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT }) {
   return new Promise((resolve, reject) => {
     let security
     let inventory = null
@@ -69,18 +71,15 @@ export function createServer({ root, distDir }) {
 
         const url = new URL(req.url, `http://127.0.0.1:${port}`)
 
-        if (url.pathname === '/' && url.searchParams.has('n')) {
-          if (security.issueCookie(req, res)) {
-            res.writeHead(200, { 'content-type': 'text/html' })
-            let index = '<!doctype html><title>claude-atlas</title><p>Run <code>npm run build</code>.</p>'
-            if (distDir) { try { index = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8') } catch { /* fall back */ } }
-            return res.end(index)
-          }
-          return json(res, 403, { error: 'bad or used nonce' })
-        }
-
         const verdict = security.check(req)
         if (!verdict.ok) return json(res, verdict.status, { error: verdict.reason })
+
+        if (url.pathname === '/' && (req.method === 'GET' || req.method === 'HEAD')) {
+          res.writeHead(200, { 'content-type': 'text/html' })
+          let index = '<!doctype html><title>claude-atlas</title><p>Run <code>npm run build</code>.</p>'
+          if (distDir) { try { index = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8') } catch { /* fall back */ } }
+          return res.end(index)
+        }
 
         if (url.pathname === '/api/inventory') {
           inventory = buildInventory(root)
@@ -260,10 +259,12 @@ export function createServer({ root, distDir }) {
     })
 
     server.on('error', reject)
-    server.listen(0, '127.0.0.1', () => {
+    // A fixed port by default, so the URL you bookmark survives a restart.
+    // 0 asks the OS for an ephemeral one, which is what the tests want.
+    server.listen(requestedPort, '127.0.0.1', () => {
       const { port } = server.address()
       security = createSecurity({ port })
-      resolve({ server, security, url: `http://127.0.0.1:${port}/?n=${security.nonce}` })
+      resolve({ server, security, url: `http://127.0.0.1:${port}/` })
     })
   })
 }

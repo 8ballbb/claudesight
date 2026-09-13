@@ -5,7 +5,7 @@ import path from 'node:path'
 import { createServer } from '../src/server/index.js'
 
 // Snapshot of the author's real shape, so this runs anywhere.
-let root, handle, base, cookie
+let root, handle, base
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-e2e-'))
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
@@ -20,15 +20,14 @@ beforeAll(async () => {
   fs.mkdirSync(skill, { recursive: true })
   fs.writeFileSync(path.join(skill, 'SKILL.md'), '---\nname: spyglass\ndescription: d\n---\n')
 
-  handle = await createServer({ root, distDir: null })
+  handle = await createServer({ port: 0, root, distDir: null })
   base = handle.url.split('?')[0].replace(/\/$/, '')
-  cookie = (await fetch(handle.url)).headers.getSetCookie().join('; ')
 })
 afterAll(() => { handle.server.close(); fs.rmSync(root, { recursive: true, force: true }) })
 
 const call = (p, init = {}) => fetch(base + p, {
   ...init,
-  headers: { origin: base, cookie, 'content-type': 'application/json', ...(init.headers ?? {}) },
+  headers: { origin: base, 'content-type': 'application/json', ...(init.headers ?? {}) },
 })
 
 describe('phase 1 exit criteria', () => {

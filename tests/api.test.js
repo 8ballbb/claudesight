@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { createServer } from '../src/server/index.js'
 
-let root, handle, base, cookie
+let root, handle, base
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-api-'))
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
@@ -14,16 +14,14 @@ beforeAll(async () => {
   fs.mkdirSync(agentDir, { recursive: true })
   fs.writeFileSync(path.join(agentDir, 'test-planner.md'),
     '---\nname: test-planner\ndescription: derives test cases\n---\n\nPrompt.\n')
-  handle = await createServer({ root, distDir: null })
+  handle = await createServer({ port: 0, root, distDir: null })
   base = handle.url.split('?')[0].replace(/\/$/, '')
-  const res = await fetch(handle.url)
-  cookie = res.headers.getSetCookie().join('; ')
 })
 afterAll(() => { handle.server.close(); fs.rmSync(root, { recursive: true, force: true }) })
 
 const call = (p, init = {}) => fetch(base + p, {
   ...init,
-  headers: { origin: base, cookie, 'content-type': 'application/json', ...(init.headers ?? {}) },
+  headers: { origin: base, 'content-type': 'application/json', ...(init.headers ?? {}) },
 })
 
 describe('api', () => {
@@ -58,8 +56,29 @@ describe('api', () => {
     expect(ids.every((id) => /^[0-9a-f]{16}$/.test(id))).toBe(true)
   })
 
-  it('rejects an unauthenticated GET', async () => {
-    expect((await fetch(base + '/api/inventory')).status).toBe(403)
+  // The launch URL carries no secret now, so these are the checks that stop a
+  // page on another site from driving this API.
+  it('rejects a read that claims another origin', async () => {
+    const r = await fetch(base + '/api/inventory', { headers: { origin: 'https://evil.example' } })
+    expect(r.status).toBe(403)
+  })
+
+  it('rejects a write from another origin', async () => {
+    const r = await fetch(base + '/api/write', {
+      method: 'POST',
+      headers: { origin: 'https://evil.example', 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 'deadbeefdeadbeef', content: 'x' }),
+    })
+    expect(r.status).toBe(403)
+  })
+
+  it('rejects a write a form could send — no application/json, no write', async () => {
+    const r = await fetch(base + '/api/write', {
+      method: 'POST',
+      headers: { origin: base, 'content-type': 'text/plain' },
+      body: JSON.stringify({ id: 'deadbeefdeadbeef', content: 'x' }),
+    })
+    expect(r.status).toBe(415)
   })
 
   it('reads and writes an artifact by id', async () => {
