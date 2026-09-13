@@ -39,6 +39,7 @@ const GROUP_LABEL = {
   plugin: 'plugins',
   mcp: 'mcp servers',
   rule: 'rules',
+  manifest: 'plugin manifest',
   other: 'not recognised',
 }
 

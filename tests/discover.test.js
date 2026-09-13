@@ -114,3 +114,19 @@ describe('projectMarkers', () => {
     expect(Object.values(m).every((v) => v === false)).toBe(true)
   })
 })
+
+describe('projectMarkers: plugin source repos', () => {
+  it('recognises a repo that publishes a plugin, whose artifacts are at the root', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-pluginsrc-'))
+    fs.mkdirSync(path.join(dir, '.claude-plugin'), { recursive: true })
+    fs.writeFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), '{"name":"x"}')
+    expect(projectMarkers(dir).pluginSource).toBe(true)
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('does not claim a plugin source for an ordinary project', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-plain-'))
+    expect(projectMarkers(dir).pluginSource).toBe(false)
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+})

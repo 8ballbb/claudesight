@@ -103,6 +103,10 @@ export function projectMarkers(dir) {
     mcp: has('.mcp.json'),
     skills: has('.claude/skills'),
     claudeDir: has('.claude'),
+    // A plugin source repo keeps its skills and agents at the REPO ROOT, not
+    // under .claude/. Without this a repo full of Claude artifacts — the
+    // author's own plugin — reported "no config".
+    pluginSource: has('.claude-plugin/plugin.json'),
     git: has('.git'),
   }
 }
@@ -132,7 +136,9 @@ export function discoverProjects(root, home = os.homedir(), extra = [], tmp = os
       exists,
       sessions: sessions.get(dir) ?? 0,
       markers,
-      configured: markers ? (markers.memory || markers.settings || markers.mcp || markers.claudeDir) : false,
+      configured: markers
+        ? (markers.memory || markers.settings || markers.mcp || markers.claudeDir || markers.pluginSource)
+        : false,
     })
   }
 

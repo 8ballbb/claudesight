@@ -80,8 +80,7 @@ export function buildProjectInventory(projectPath) {
   })))
 
   // Markdown-defined kinds: a flat directory of .md files, or nested for rules.
-  const markdownIn = (rel, depth) => {
-    const dir = path.join(dotClaude, rel)
+  const markdownAt = (dir, depth) => {
     const r = readDirSafe(dir)
     if (r.state !== 'ok') return []
     const out = []
@@ -99,9 +98,61 @@ export function buildProjectInventory(projectPath) {
     return out
   }
 
-  add('agent', markdownIn('agents', 1))
-  add('command', markdownIn('commands', 1))
+  const markdownIn = (rel, depth) => markdownAt(path.join(dotClaude, rel), depth)
+
+  // A plugin SOURCE repo keeps its artifacts at the repo root rather than
+  // under .claude/ — that is the layout `claude plugin` publishes from. Without
+  // this, a repo holding a manifest, 13 agents and 3 skills reported nothing.
+  const manifest = readJsonSafe(path.join(projectPath, '.claude-plugin', 'plugin.json'))
+  const isPluginSource = manifest.state !== 'absent'
+
+  add('agent', [...markdownIn('agents', 1), ...(isPluginSource ? markdownAt(path.join(projectPath, 'agents'), 1) : [])])
+  add('command', [...markdownIn('commands', 1), ...(isPluginSource ? markdownAt(path.join(projectPath, 'commands'), 2) : [])])
   add('rule', markdownIn('rules', 3))
+
+  if (isPluginSource) {
+    add('manifest', [{
+      path: path.join(projectPath, '.claude-plugin', 'plugin.json'),
+      label: 'plugin.json',
+      keys: manifest.state === 'ok' ? Object.keys(manifest.value).length : 0,
+      declaredVersion: manifest.state === 'ok' ? (manifest.value.version ?? null) : null,
+      state: manifest.state,
+      artifactKind: 'settings',
+    }])
+    const repoSkills = readSkills(projectPath)
+    denied.push(...repoSkills.denied)
+    errors.push(...repoSkills.errors)
+    for (const g of groups) {
+      if (g.kind !== 'skill') continue
+      for (const x of repoSkills.skills) {
+        const id = handleFor(x.path)
+        table.set(id, { path: x.path, kind: 'skill' })
+        g.items.push({
+          id, kind: 'skill', path: x.path, label: x.name, description: x.description,
+          origin: 'plugin-source', malformed: x.malformed, unreadable: x.unreadable,
+          writability: classify({ path: x.path, kind: 'skill', root: projectPath }),
+        })
+      }
+    }
+  }
+
+  // Hooks and status lines declared in a project's settings point at scripts
+  // that Claude Code EXECUTES. The global inventory has always surfaced these;
+  // at project scope they were invisible.
+  const scripts = []
+  for (const name of ['settings.json', 'settings.local.json']) {
+    const r = readJsonSafe(path.join(dotClaude, name))
+    if (r.state !== 'ok') continue
+    for (const x of extractScripts(r.value, projectPath)) {
+      if (x.scriptPath) {
+        scripts.push({
+          path: x.scriptPath, label: path.basename(x.scriptPath),
+          keyPath: `${name}:${x.keyPath}`, command: x.command, artifactKind: x.kind,
+        })
+      }
+    }
+  }
+  add('scripts', scripts)
 
   // Anything else in .claude/ that no reader above consumed. A project's
   // .claude/ is curated by hand, so an entry we do not recognise is still a

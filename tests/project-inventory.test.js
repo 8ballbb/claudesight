@@ -54,6 +54,42 @@ describe('buildProjectInventory', () => {
     expect(c.rule).toBe(1)
   })
 
+  it('reads a plugin source repo, whose artifacts sit at the repo root', () => {
+    write('.claude-plugin/plugin.json', '{"name":"spyglass","version":"0.3.3"}')
+    write('agents/test-planner.md', '---\nname: test-planner\ndescription: d\n---\n')
+    write('skills/spyglass/SKILL.md', '---\nname: spyglass\ndescription: d\n---\n')
+    const c = counts(buildProjectInventory(project))
+    expect(c).toMatchObject({ agent: 1, skill: 1, manifest: 1 })
+  })
+
+  it('does not read root-level agents when there is no plugin manifest', () => {
+    // A plain project with an unrelated agents/ directory is not a plugin.
+    write('agents/notes.md', '# not a Claude agent\n')
+    expect(counts(buildProjectInventory(project)).agent).toBeUndefined()
+  })
+
+  it('surfaces scripts a project settings file tells Claude Code to execute', () => {
+    write('scripts/guard.sh', '#!/bin/sh\necho guarding\n')
+    write('.claude/settings.json', JSON.stringify({
+      hooks: { PreToolUse: [{ hooks: [{ command: 'bash ./scripts/guard.sh' }] }] },
+    }))
+    const scripts = buildProjectInventory(project).groups.find((g) => g.kind === 'scripts')
+    expect(scripts.items).toHaveLength(1)
+    expect(scripts.items[0]).toMatchObject({ label: 'guard.sh', kind: 'hookScript' })
+    expect(scripts.items[0].keyPath).toContain('settings.json')
+    // Executed as shell, so it must never be classified as plain text.
+    expect(scripts.items[0].writability.class).toBe('exec')
+  })
+
+  it('resolves a hook written against $CLAUDE_PROJECT_DIR', () => {
+    write('scripts/fmt.sh', '#!/bin/sh\n')
+    write('.claude/settings.json', JSON.stringify({
+      hooks: { PostToolUse: [{ hooks: [{ command: '$CLAUDE_PROJECT_DIR/scripts/fmt.sh' }] }] },
+    }))
+    const scripts = buildProjectInventory(project).groups.find((g) => g.kind === 'scripts')
+    expect(scripts.items.map((i) => i.label)).toEqual(['fmt.sh'])
+  })
+
   it('never renders empty when .claude exists — the marker must not lie', () => {
     // A plugin's own working data. No reader knows this shape, and showing
     // nothing because of that is the failure this whole app exists to prevent.

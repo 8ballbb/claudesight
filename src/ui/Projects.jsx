@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Inventory, { Notices } from './Inventory.jsx'
 import Editor from './Editor.jsx'
 import s from './app.module.css'
 
-const MARKER_ORDER = ['memory', 'settings', 'mcp', 'skills', 'claudeDir', 'git']
+const MARKER_ORDER = ['memory', 'settings', 'mcp', 'skills', 'claudeDir', 'pluginSource', 'git']
 const MARKER_LABEL = {
   memory: 'CLAUDE.md', settings: 'settings', mcp: '.mcp.json',
-  skills: 'skills', claudeDir: '.claude', git: 'git',
+  skills: 'skills', claudeDir: '.claude', pluginSource: 'plugin source', git: 'git',
 }
 
 export default function Projects({ post }) {
@@ -17,6 +17,15 @@ export default function Projects({ post }) {
   const [adding, setAdding] = useState('')
   const [addError, setAddError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const detail = useRef(null)
+
+  // The picked project renders BELOW a list that can be a screen tall, so the
+  // click had no visible effect and read as "this project shows nothing".
+  useEffect(() => {
+    if (selected && detail.current) {
+      detail.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selected])
 
   useEffect(() => {
     fetch('/api/projects').then((r) => r.json()).then(setFound)
@@ -97,10 +106,18 @@ export default function Projects({ post }) {
         </section>
 
         {selected && (
-          <section className={s.group}>
+          <section className={s.group} ref={detail}>
             <div className={s.groupHead}>
               <h2 className={s.groupName}>{selected.path.split('/').pop()}</h2>
               <span className={s.groupRule} />
+              {inv && (
+                <span className={s.groupSplit}>
+                  {(() => {
+                    const n = inv.groups.reduce((a, g) => a + g.items.length, 0)
+                    return `${n} artifact${n === 1 ? '' : 's'}`
+                  })()}
+                </span>
+              )}
             </div>
             <p className={s.path}>{selected.path}</p>
             {!inv && <p className={s.loading}>Reading…</p>}
