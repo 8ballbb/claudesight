@@ -147,8 +147,8 @@ export default function Editor({ item, post, onClose, onSaved }) {
     const r = await post('/api/versions/delete', { id: item.id, versionId })
     setBusy(false)
     setPendingDelete(null)
-    if (r.ok) { setStatus({ tone: 'good', text: 'Version deleted.' }); loadVersions() }
-    else setStatus({ tone: 'bad', text: `Could not delete: ${r.error}` })
+    if (r.ok) { setStatus({ tone: 'good', text: 'Moved to Trash.' }); loadVersions() }
+    else setStatus({ tone: 'bad', text: `Nothing deleted — ${r.reason ?? r.error}` })
   }
 
   const facts = factsFor(item, doc)
@@ -313,7 +313,9 @@ export default function Editor({ item, post, onClose, onSaved }) {
                     </div>
                     {pendingDelete === v.id ? (
                       <div className={s.actions}>
-                        <span className={s.deleteWarn}>Deleting a version cannot be undone from this app.</span>
+                        <span className={s.deleteWarn}>
+                          Moves this version to your Trash. Recover it from there if you change your mind.
+                        </span>
                         <button className={`${s.btn} ${s.btnDanger}`} disabled={busy}
                           onClick={() => removeVersion(v.id)}>Delete</button>
                         <button className={`${s.btn} ${s.btnQuiet}`}

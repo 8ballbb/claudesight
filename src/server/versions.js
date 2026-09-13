@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { moveToTrash } from './trash.js'
 
 // Explicit, user-created restore points. Distinct from the writer's automatic
 // pre-write backup, which stays beside the original and stays deliberately
@@ -115,18 +116,46 @@ export function readVersion(target, id, home = os.homedir()) {
   }
 }
 
-export function deleteVersion(target, id, home = os.homedir()) {
+// Deletion goes to the platform trash, never to oblivion — the point is that
+// it stays recoverable outside this app. If trashing fails, nothing is
+// removed. `forceMechanism` exists so tests can trash into a temp home
+// instead of littering the real Trash.
+export function deleteVersion(target, id, home = os.homedir(), forceMechanism = null) {
   if (!/^[0-9A-Za-z._-]+$/.test(id)) return { ok: false, error: 'bad-id' }
   const dir = dirFor(target, home)
   const snap = path.join(dir, `${id}.snap`)
+  const meta = path.join(dir, `${id}.json`)
   if (!fs.existsSync(snap)) return { ok: false, error: 'unknown-version' }
+
+  // One self-describing folder, so the Trash entry says what it is and the
+  // snapshot inside carries the original filename rather than a hash.
+  const box = path.join(home, '.claude-atlas', '.trashing',
+    `claude-atlas-version-${path.basename(target)}-${id}`)
+  fs.rmSync(box, { recursive: true, force: true })
+  fs.mkdirSync(box, { recursive: true })
+
+  fs.copyFileSync(snap, path.join(box, path.basename(target)))
+  let info = {}
+  try { info = JSON.parse(fs.readFileSync(meta, 'utf8')) } catch { /* damaged sidecar */ }
+  fs.writeFileSync(path.join(box, 'metadata.json'), JSON.stringify({
+    ...info,
+    deletedAt: new Date().toISOString(),
+    restoreTo: path.resolve(target),
+  }, null, 2))
+
+  const trashed = moveToTrash(box, home, forceMechanism)
+  if (!trashed.ok) {
+    fs.rmSync(box, { recursive: true, force: true })
+    return trashed // the originals are untouched
+  }
+
   fs.rmSync(snap, { force: true })
-  fs.rmSync(path.join(dir, `${id}.json`), { force: true })
+  fs.rmSync(meta, { force: true })
   try {
     if (fs.readdirSync(dir).length === 0) fs.rmdirSync(dir)
   } catch { /* leaving an empty directory is harmless */ }
   refreshIndex(home)
-  return { ok: true }
+  return { ok: true, mechanism: trashed.mechanism }
 }
 
 // Derived view: which files have versions, and where. Rebuilt from the

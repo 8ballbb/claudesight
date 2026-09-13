@@ -112,7 +112,7 @@ describe('readVersion', () => {
 describe('deleteVersion', () => {
   it('removes both the snapshot and its sidecar', () => {
     const r = createVersion(target, null, home)
-    expect(deleteVersion(target, r.version.id, home)).toEqual({ ok: true })
+    expect(deleteVersion(target, r.version.id, home, 'xdg')).toMatchObject({ ok: true })
     expect(listVersions(target, home)).toEqual([])
     expect(readVersion(target, r.version.id, home)).toBeNull()
   })
@@ -121,22 +121,22 @@ describe('deleteVersion', () => {
     const r = createVersion(target, null, home)
     const dirs = () => fs.readdirSync(storeRoot(home)).filter((d) => d !== 'index.json')
     expect(dirs()).toHaveLength(1)
-    deleteVersion(target, r.version.id, home)
+    deleteVersion(target, r.version.id, home, 'xdg')
     expect(dirs()).toHaveLength(0)
   })
 
   it('reports an unknown version rather than silently succeeding', () => {
-    expect(deleteVersion(target, 'nope', home)).toEqual({ ok: false, error: 'unknown-version' })
+    expect(deleteVersion(target, 'nope', home, 'xdg')).toEqual({ ok: false, error: 'unknown-version' })
   })
 
   it('refuses an id containing path separators', () => {
-    expect(deleteVersion(target, '../../x', home)).toEqual({ ok: false, error: 'bad-id' })
+    expect(deleteVersion(target, '../../x', home, 'xdg')).toEqual({ ok: false, error: 'bad-id' })
   })
 
   it('leaves sibling versions untouched', () => {
     createVersion(target, 'keep', home)
     const drop = createVersion(target, 'drop', home)
-    deleteVersion(target, drop.version.id, home)
+    deleteVersion(target, drop.version.id, home, 'xdg')
     expect(listVersions(target, home).map((v) => v.label)).toEqual(['keep'])
   })
 })
@@ -161,5 +161,60 @@ describe('index.json', () => {
     const r = createVersion(target, 'one', home)
     fs.rmSync(path.join(storeRoot(home), 'index.json'))
     expect(listVersions(target, home)[0].id).toBe(r.version.id)
+  })
+})
+
+describe('deletion goes to the trash, not oblivion', () => {
+  const trashFiles = () => path.join(home, '.local', 'share', 'Trash', 'files')
+  const trashInfo = () => path.join(home, '.local', 'share', 'Trash', 'info')
+
+  it('puts a recoverable copy in the trash', () => {
+    fs.writeFileSync(target, 'the content I will want back\n')
+    const r = createVersion(target, 'precious', home)
+    deleteVersion(target, r.version.id, home, 'xdg')
+
+    const boxes = fs.readdirSync(trashFiles())
+    expect(boxes).toHaveLength(1)
+    expect(boxes[0]).toContain('NOTES.md')
+
+    // The snapshot inside carries the ORIGINAL filename, not a hash.
+    const recovered = fs.readFileSync(path.join(trashFiles(), boxes[0], 'NOTES.md'), 'utf8')
+    expect(recovered).toBe('the content I will want back\n')
+  })
+
+  it('records where it came from, so it can be put back by hand', () => {
+    const r = createVersion(target, 'labelled', home)
+    deleteVersion(target, r.version.id, home, 'xdg')
+    const box = fs.readdirSync(trashFiles())[0]
+    const meta = JSON.parse(fs.readFileSync(path.join(trashFiles(), box, 'metadata.json'), 'utf8'))
+    expect(meta.restoreTo).toBe(target)
+    expect(meta.label).toBe('labelled')
+    expect(meta.deletedAt).toBeTruthy()
+  })
+
+  it('writes a trashinfo naming the original path', () => {
+    const r = createVersion(target, null, home)
+    deleteVersion(target, r.version.id, home, 'xdg')
+    const info = fs.readdirSync(trashInfo())[0]
+    const body = fs.readFileSync(path.join(trashInfo(), info), 'utf8')
+    expect(body).toContain('[Trash Info]')
+    expect(body).toContain('Path=')
+    expect(body).toContain('DeletionDate=')
+  })
+
+  it('keeps the version when there is no trash mechanism', () => {
+    const r = createVersion(target, 'safe', home)
+    const out = deleteVersion(target, r.version.id, home, 'none')
+    expect(out.ok).toBe(false)
+    expect(out.error).toBe('no-trash')
+    expect(listVersions(target, home)).toHaveLength(1)
+    expect(readVersion(target, r.version.id, home)).toBe('original\n')
+  })
+
+  it('leaves no staging directory behind', () => {
+    const r = createVersion(target, null, home)
+    deleteVersion(target, r.version.id, home, 'xdg')
+    const staging = path.join(home, '.claude-atlas', '.trashing')
+    expect(fs.existsSync(staging) ? fs.readdirSync(staging) : []).toEqual([])
   })
 })
