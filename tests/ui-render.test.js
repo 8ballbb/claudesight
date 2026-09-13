@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const uiFiles = ['index.html', 'main.jsx', 'App.jsx', 'Editor.jsx', 'app.module.css']
+const uiFiles = ['index.html', 'main.jsx', 'App.jsx', 'Editor.jsx', 'Inventory.jsx', 'Projects.jsx', 'app.module.css']
 
 describe('ui source', () => {
   it('has all expected files', () => {
@@ -19,7 +19,7 @@ describe('ui source', () => {
   })
 
   it('renders the four states rather than a bare count', () => {
-    const src = fs.readFileSync('src/ui/App.jsx', 'utf8')
+    const src = uiFiles.map((f) => fs.readFileSync(path.join('src/ui', f), 'utf8')).join('\n')
     for (const state of ['absent', 'empty', 'denied', 'malformed']) {
       expect(src, state).toContain(state)
     }

@@ -1,8 +1,10 @@
 import http from 'node:http'
+import os from 'node:os'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createSecurity } from './security.js'
-import { buildInventory } from './api.js'
+import { buildInventory, buildProjectInventory } from './api.js'
+import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
 import { listVersions, createVersion, readVersion, deleteVersion } from './versions.js'
 import { createSkill } from './create.js'
@@ -39,6 +41,23 @@ export function createServer({ root, distDir }) {
   return new Promise((resolve, reject) => {
     let security
     let inventory = null
+    const home = os.homedir()
+    const projectInventories = new Map()
+    const added = new Set()
+    let allowed = new Set()
+
+    // An artifact id may belong to the global inventory or to any project
+    // opened this session, so every lookup checks both.
+    const lookup = (id) => {
+      if (!inventory) inventory = buildInventory(root)
+      const global = inventory.table.get(id)
+      if (global) return global
+      for (const inv of projectInventories.values()) {
+        const hit = inv.table.get(id)
+        if (hit) return hit
+      }
+      return null
+    }
 
     const server = http.createServer(async (req, res) => {
       try {
@@ -76,8 +95,7 @@ export function createServer({ root, distDir }) {
           const parsed = await parseBody(req)
           if (parsed === null) return json(res, 400, { error: 'invalid-json' })
           const { id } = parsed
-          if (!inventory) inventory = buildInventory(root)
-          const entry = inventory.table.get(id)
+          const entry = lookup(id)
           if (!entry) return json(res, 404, { error: 'unknown id' })
           // Some artifacts are directories or have vanished since the scan.
           // Say so rather than letting readFileSync throw EISDIR/ENOENT.
@@ -93,8 +111,7 @@ export function createServer({ root, distDir }) {
         if (url.pathname === '/api/write' && req.method === 'POST') {
           const body = await parseBody(req)
           if (body === null) return json(res, 400, { error: 'invalid-json' })
-          if (!inventory) inventory = buildInventory(root)
-          const entry = inventory.table.get(body.id)
+          const entry = lookup(body.id)
           if (!entry) return json(res, 404, { error: 'unknown id' })
           const result = writeArtifact({
             target: entry.path,
@@ -105,6 +122,45 @@ export function createServer({ root, distDir }) {
             confirmToken: body.confirmToken,
           })
           return json(res, result.ok ? 200 : 409, result)
+        }
+
+        if (url.pathname === '/api/projects' && req.method === 'GET') {
+          const found = discoverProjects(root, home, [...added])
+          // Only paths that came out of discovery, or were explicitly added,
+          // may be inventoried — otherwise a crafted request is an
+          // arbitrary-directory read primitive.
+          allowed = new Set(found.projects.map((p) => p.path))
+          return json(res, 200, found)
+        }
+
+        if (url.pathname === '/api/projects/add' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          const dir = path.resolve(String(body.path ?? ''))
+          let stat
+          try { stat = fs.statSync(dir) } catch { stat = null }
+          if (!stat || !stat.isDirectory()) {
+            return json(res, 404, { ok: false, error: 'not-a-directory', reason: `${dir} is not a directory.` })
+          }
+          added.add(dir)
+          const found = discoverProjects(root, home, [...added])
+          allowed = new Set(found.projects.map((p) => p.path))
+          return json(res, 200, { ok: true, ...found })
+        }
+
+        if (url.pathname === '/api/project-inventory' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          const dir = path.resolve(String(body.path ?? ''))
+          if (!allowed.has(dir)) {
+            return json(res, 403, { error: 'not-discovered', reason: 'Open this project from the list first.' })
+          }
+          const built = buildProjectInventory(dir)
+          projectInventories.set(dir, built)
+          // `table` holds absolute paths and is server-only lookup state.
+          // eslint-disable-next-line no-unused-vars
+          const { table, ...safe } = built
+          return json(res, 200, safe)
         }
 
         if (url.pathname === '/api/create' && req.method === 'POST') {
@@ -135,8 +191,7 @@ export function createServer({ root, distDir }) {
         if (url.pathname.startsWith('/api/versions') && req.method === 'POST') {
           const body = await parseBody(req)
           if (body === null) return json(res, 400, { error: 'invalid-json' })
-          if (!inventory) inventory = buildInventory(root)
-          const entry = inventory.table.get(body.id)
+          const entry = lookup(body.id)
           if (!entry) return json(res, 404, { error: 'unknown id' })
 
           if (url.pathname === '/api/versions') {
