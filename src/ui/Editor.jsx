@@ -3,18 +3,20 @@ import s from './app.module.css'
 
 // Why a thing cannot be edited, in plain language. A dead read-only box with no
 // explanation reads as a broken app; these classes are deliberate.
+// State what the app DOES, not what would hypothetically happen. Saving is
+// refused outright for all three of these — the text below the box is view-only.
 const WHY = {
   redirect: {
-    title: 'Installed copy — edits would be lost',
-    text: 'This lives under the plugin cache. Claude Code overwrites it on the next plugin update, so a change here disappears without warning. Edit the marketplace checkout, or fork the file to your own scope.',
+    title: 'Read-only — saving is refused',
+    text: 'This is the installed copy, inside the plugin cache. "claude plugin update" overwrites that directory wholesale, so an edit here would be reverted the next time the plugin updates — which is why the app blocks it rather than letting you lose work later. To change it for real, edit the marketplace checkout below, or copy the file into your own skills directory.',
   },
   readonly: {
-    title: 'Read-only',
-    text: 'Nothing here is yours to write. Managed policy is deployed by your organisation; a marketplace checkout is managed by the plugin commands.',
+    title: 'Read-only — saving is refused',
+    text: 'Nothing here is yours to write. Managed policy is deployed by your organisation and is root-owned; a marketplace checkout is managed by the plugin commands.',
   },
   guarded: {
-    title: 'Guarded — not editable from here',
-    text: 'Hand-editing this breaks things that depend on it: a transcript stops resuming, and ~/.claude.json holds your sign-in session. View only in Phase 1.',
+    title: 'Protected — saving is refused',
+    text: 'Hand-editing this breaks whatever depends on it: an edited transcript stops resuming, and ~/.claude.json holds your sign-in session. Viewing only, in Phase 1.',
   },
 }
 
@@ -129,7 +131,7 @@ export default function Editor({ item, post, onClose, onSaved }) {
 
         {cls === 'exec' && (
           <div className={s.why}>
-            <p className={s.whyTitle}>Claude Code executes this file</p>
+            <p className={s.whyTitle}>Editable — Claude Code executes this file</p>
             <p className={s.whyText}>
               Its entire contents run as shell. Saving requires a second confirmation showing
               exactly what you are installing.

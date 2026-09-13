@@ -12,10 +12,20 @@ export const post = (url, body) =>
 // A reader can fail four distinguishable ways, and the whole point of this tool
 // is that they never collapse into a bare zero.
 const SOURCE_NOTE = {
-  absent: (label) => `no ${label} directory — nothing is configured there`,
-  empty: (label) => `${label} directory exists but is empty`,
-  denied: (label) => `${label} directory is present but unreadable`,
-  malformed: (label) => `${label} could not be parsed`,
+  absent: (dir) => `${dir} does not exist — nothing is configured there`,
+  empty: (dir) => `${dir} exists but is empty`,
+  denied: (dir) => `${dir} exists but could not be read (permission denied)`,
+  malformed: (dir) => `${dir} could not be parsed`,
+}
+
+// The internal class names are precise but they are not English. Show the
+// consequence; the detail panel explains the distinction.
+const CLASS_LABEL = {
+  free: 'editable',
+  exec: 'executable',
+  redirect: 'read-only',
+  readonly: 'read-only',
+  guarded: 'protected',
 }
 
 const THEMES = [
@@ -90,7 +100,8 @@ function Chips({ item }) {
     out.push([`manifest ${item.manifestState}`, s.alarm])
   }
   if (item.enabled === false) out.push(['disabled', s.locked])
-  out.push([item.writability.class, CLASS_CHIP[item.writability.class] ?? s.locked])
+  const cls = item.writability.class
+  out.push([CLASS_LABEL[cls] ?? cls, CLASS_CHIP[cls] ?? s.locked])
   return (
     <span className={s.rowTail}>
       {out.map(([text, tone], i) => (
@@ -129,7 +140,7 @@ export default function App() {
 
   const notes = (inv.sources ?? [])
     .filter((r) => r.state !== 'ok')
-    .map((r) => ({ tag: r.label, text: SOURCE_NOTE[r.state]?.(r.label) ?? `${r.label}: ${r.state}` }))
+    .map((r) => ({ tag: r.label, text: SOURCE_NOTE[r.state]?.(r.dir) ?? `${r.dir}: ${r.state}` }))
 
   if (inv.denied?.length) {
     notes.push({
