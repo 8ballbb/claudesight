@@ -35,6 +35,11 @@ function meta(item) {
   if (item.kind === 'hookScript' || item.kind === 'statusLineScript') return item.keyPath
   if (item.kind === 'skill') return [item.plugin, item.description].filter(Boolean).join(' · ')
   if (item.kind === 'plugin') return [item.recordedVersion, item.scope].filter(Boolean).join(' · ')
+  if (item.kind === 'other') {
+    return item.entryType === 'directory'
+      ? 'directory — no reader for this yet'
+      : `${item.bytes ?? '?'} bytes — no reader for this yet`
+  }
   return item.path
 }
 

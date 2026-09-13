@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import path from 'node:path'
 import { readSkills } from './readers/skills.js'
 import { readMemory, flattenMemory } from './readers/memory.js'
@@ -76,6 +77,55 @@ export function buildProjectInventory(projectPath) {
     path: x.path, label: x.name, description: x.description,
     origin: 'project', malformed: x.malformed, unreadable: x.unreadable,
   })))
+
+  // Markdown-defined kinds: a flat directory of .md files, or nested for rules.
+  const markdownIn = (rel, depth) => {
+    const dir = path.join(dotClaude, rel)
+    const r = readDirSafe(dir)
+    if (r.state !== 'ok') return []
+    const out = []
+    const visit = (current, left) => {
+      const entries = readDirSafe(current)
+      if (entries.state !== 'ok') return
+      for (const entry of entries.value) {
+        const full = path.join(current, entry.name)
+        if (entry.isDirectory()) { if (left > 0) visit(full, left - 1); continue }
+        if (!entry.name.endsWith('.md')) continue
+        out.push({ path: full, label: path.relative(dir, full).replace(/\.md$/, '') })
+      }
+    }
+    visit(dir, depth)
+    return out
+  }
+
+  add('agent', markdownIn('agents', 1))
+  add('command', markdownIn('commands', 1))
+  add('rule', markdownIn('rules', 3))
+
+  // Anything else in .claude/ that no reader above consumed. A project's
+  // .claude/ is curated by hand, so an entry we do not recognise is still a
+  // real thing the user put there — showing "nothing" because we lack a
+  // reader is precisely the failure this app exists to prevent. (The global
+  // root is excluded from this treatment: it holds Claude Code's own internal
+  // state — caches, daemons, session data — which is noise, not config.)
+  const CONSUMED = new Set([
+    'CLAUDE.md', 'settings.json', 'settings.local.json',
+    'skills', 'agents', 'commands', 'rules',
+  ])
+  const rest = readDirSafe(dotClaude)
+  add('other', rest.state !== 'ok' ? [] : rest.value
+    .filter((e) => !CONSUMED.has(e.name))
+    .map((e) => {
+      const full = path.join(dotClaude, e.name)
+      let size = null
+      try { size = e.isDirectory() ? null : fs.statSync(full).size } catch { /* ignore */ }
+      return {
+        path: full,
+        label: e.name,
+        entryType: e.isDirectory() ? 'directory' : 'file',
+        bytes: size,
+      }
+    }))
 
   return {
     root: projectPath,
