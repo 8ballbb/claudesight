@@ -49,8 +49,10 @@ export function readJsonSafe(file) {
   }
 }
 
-export function walkForSafe(dir, filename, maxDepth = 8) {
-  const found = []
+// One traversal, shared by the two finders below. Cycle-guarded on resolved
+// paths, and tolerant of an unmapped errno: a single bad directory must never
+// discard the results gathered before it.
+function walkSafe(dir, maxDepth, onDir, onFile) {
   const deniedDirs = []
   const errors = []
   const seen = new Set()
@@ -68,7 +70,6 @@ export function walkForSafe(dir, filename, maxDepth = 8) {
     try {
       r = readDirSafe(current)
     } catch (err) {
-      // An unmapped errno must not discard the results gathered so far.
       errors.push({ path: current, errno: err.code ?? 'UNKNOWN' })
       return
     }
@@ -83,11 +84,30 @@ export function walkForSafe(dir, filename, maxDepth = 8) {
       if (entry.isSymbolicLink()) {
         try { isDir = fs.statSync(full).isDirectory() } catch { isDir = false }
       }
-      if (isDir) visit(full, depth + 1)
-      else if (entry.name === filename) found.push(full)
+      if (isDir) { onDir(full, entry.name); visit(full, depth + 1) }
+      else onFile(full, entry.name)
     }
   }
 
   visit(dir, 1)
+  return { deniedDirs, errors }
+}
+
+export function walkForSafe(dir, filename, maxDepth = 8) {
+  const found = []
+  const { deniedDirs, errors } = walkSafe(dir, maxDepth,
+    () => {},
+    (full, name) => { if (name === filename) found.push(full) })
+  return { found, denied: deniedDirs, errors }
+}
+
+// Agents and commands live in a DIRECTORY of that name, at a depth that varies
+// per plugin (the version segment is sometimes literal, sometimes "unknown"),
+// so they are found by directory name rather than by path shape.
+export function walkForDirSafe(dir, dirname, maxDepth = 8) {
+  const found = []
+  const { deniedDirs, errors } = walkSafe(dir, maxDepth,
+    (full, name) => { if (name === dirname) found.push(full) },
+    () => {})
   return { found, denied: deniedDirs, errors }
 }

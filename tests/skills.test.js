@@ -40,7 +40,7 @@ describe('readSkills', () => {
   })
 
   it('reports the missing user skills dir as absent, not as zero skills', () => {
-    const report = readSkills(root).sources.find((s) => s.label === 'user')
+    const report = readSkills(root).sources.find((s) => s.label === 'user skills')
     expect(report.state).toBe('absent')
   })
 

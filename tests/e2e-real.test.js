@@ -35,7 +35,7 @@ describe('phase 1 exit criteria', () => {
   it('shows plugin skills even though ~/.claude/skills does not exist', async () => {
     const inv = await (await call('/api/inventory')).json()
     expect(inv.groups.find((g) => g.kind === 'skill').items).toHaveLength(1)
-    expect(inv.sources.find((s) => s.label === 'user').state).toBe('absent')
+    expect(inv.sources.find((s) => s.label === 'user skills').state).toBe('absent')
   })
 
   it('shows the hook script body as an artifact', async () => {

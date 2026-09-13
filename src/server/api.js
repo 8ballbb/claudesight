@@ -5,6 +5,7 @@ import { readSkills } from './readers/skills.js'
 import { readMemory, flattenMemory } from './readers/memory.js'
 import { readSettings, extractScripts } from './readers/settings.js'
 import { readPlugins } from './readers/plugins.js'
+import { readMarkdownKind } from './readers/markdown.js'
 import { classify } from './writability.js'
 import { readJsonSafe, readDirSafe } from './fsread.js'
 
@@ -143,6 +144,7 @@ export function buildInventory(root) {
   const groups = []
   const denied = []
   const errors = []
+  const sources = []
 
   const add = (groupKind, entries) => {
     const items = entries.map((e) => {
@@ -182,6 +184,21 @@ export function buildInventory(root) {
     malformed: x.malformed, unreadable: x.unreadable,
   })))
 
+  // Agents and commands were missing entirely: on a machine with no user-level
+  // agents/ directory, every one of them comes from a plugin, so a reader that
+  // only looked at <root>/agents would have reported an honest-looking zero.
+  for (const [kind, dirName] of [['agent', 'agents'], ['command', 'commands']]) {
+    const r = readMarkdownKind(root, dirName)
+    denied.push(...r.denied)
+    errors.push(...r.errors)
+    sources.push(...r.sources)
+    add(kind, r.items.map((x) => ({
+      path: x.path, label: x.name, invocable: x.invocable, description: x.description,
+      model: x.model, origin: x.origin, plugin: x.plugin ?? null,
+      malformed: x.malformed, unreadable: x.unreadable,
+    })))
+  }
+
   const pl = readPlugins(root)
   add('plugin', pl.plugins.map((p) => {
     // A plugin's installPath is a DIRECTORY. Addressing the item by it made
@@ -210,7 +227,7 @@ export function buildInventory(root) {
     groups,
     denied,
     errors,
-    sources: [...sk.sources, ...pl.sources],
+    sources: [...sk.sources, ...sources, ...pl.sources],
     table,
   }
 }

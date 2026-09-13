@@ -10,6 +10,10 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
   fs.writeFileSync(path.join(root, 'NOTES.md'), '# RTK\n')
   fs.writeFileSync(path.join(root, 'settings.json'), '{"model":"claude-opus-5"}')
+  const agentDir = path.join(root, 'plugins/cache/mp/spyglass/0.1.0/agents')
+  fs.mkdirSync(agentDir, { recursive: true })
+  fs.writeFileSync(path.join(agentDir, 'test-planner.md'),
+    '---\nname: test-planner\ndescription: derives test cases\n---\n\nPrompt.\n')
   handle = await createServer({ root, distDir: null })
   base = handle.url.split('?')[0].replace(/\/$/, '')
   const res = await fetch(handle.url)
@@ -32,6 +36,20 @@ describe('api', () => {
     const inv = await (await call('/api/inventory')).json()
     const mem = inv.groups.find((g) => g.kind === 'memory')
     expect(mem.items.some((i) => i.path.endsWith('NOTES.md'))).toBe(true)
+  })
+
+  // Agents are delivered almost entirely by plugins. A reader that looked only
+  // at <root>/agents would report an honest-looking zero on most machines.
+  it('serves plugin-delivered agents under their invocable name', async () => {
+    const inv = await (await call('/api/inventory')).json()
+    const agents = inv.groups.find((g) => g.kind === 'agent')
+    expect(agents.items).toHaveLength(1)
+    expect(agents.items[0]).toMatchObject({
+      label: 'test-planner',
+      invocable: 'spyglass:test-planner',
+      description: 'derives test cases',
+    })
+    expect(agents.items[0].writability.class).toBe('redirect')
   })
 
   it('gives every item an opaque id, not a path', async () => {
