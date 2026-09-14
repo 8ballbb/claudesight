@@ -9,6 +9,9 @@ const LAST_PROJECT = 'atlas.lastProject'
 // inventory is worse than either one full width.
 const STACK_AT = 900
 
+// How many marker chips fit a project row before it would clip.
+const MARKERS_SHOWN = 4
+
 const MARKER_ORDER = ['memory', 'settings', 'mcp', 'skills', 'claudeDir', 'pluginSource', 'git']
 const MARKER_LABEL = {
   memory: 'CLAUDE.md', settings: 'settings', mcp: '.mcp.json',
@@ -112,15 +115,35 @@ export default function Projects({ post, guard, frozen }) {
                 <span className={s.rowTail}>
                   {!p.exists && <span className={`${s.chip} ${s.alarm}`}>gone</span>}
                   {p.exists && !p.configured && <span className={`${s.chip} ${s.locked}`}>no config</span>}
-                  {p.markers && MARKER_ORDER.filter((m) => p.markers[m]).map((m) => (
-                    <span
-                      key={m}
-                      className={`${s.chip} ${m === 'git' ? s.locked : s.free}`}
-                      title={`${MARKER_LABEL[m]} found in this project`}
-                    >
-                      {MARKER_LABEL[m]}
-                    </span>
-                  ))}
+                  {(() => {
+                    // A row that silently clips its last chip is the same lie as
+                    // a count standing in for the paths behind it. Show what
+                    // fits, then say how many did not.
+                    const found = p.markers ? MARKER_ORDER.filter((m) => p.markers[m]) : []
+                    const shown = found.slice(0, MARKERS_SHOWN)
+                    const hidden = found.length - shown.length
+                    return (
+                      <>
+                        {shown.map((m) => (
+                          <span
+                            key={m}
+                            className={`${s.chip} ${m === 'git' ? s.locked : s.free}`}
+                            title={`${MARKER_LABEL[m]} found in this project`}
+                          >
+                            {MARKER_LABEL[m]}
+                          </span>
+                        ))}
+                        {hidden > 0 && (
+                          <span
+                            className={`${s.chip} ${s.locked}`}
+                            title={found.map((m) => MARKER_LABEL[m]).join(', ')}
+                          >
+                            +{hidden}
+                          </span>
+                        )}
+                      </>
+                    )
+                  })()}
                 </span>
               </li>
             ))}
