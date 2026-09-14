@@ -2,10 +2,24 @@
 
 See and edit every Claude Code artifact on your machine — globally and per project.
 
-    npx claude-atlas
+    git clone https://github.com/8ballbb/claude-atlas
+    cd claude-atlas
+    npm install        # also builds the UI
+    npm start
 
-Opens a local web UI at `http://127.0.0.1:7717/`. Reads `$CLAUDE_CONFIG_DIR` if set,
-otherwise `~/.claude`. Use `--port` to move it.
+Opens a local web UI at `http://127.0.0.1:7717/`. Stop it with Ctrl-C.
+
+Reads `$CLAUDE_CONFIG_DIR` if set, otherwise `~/.claude`. Use `--port 7718` to move it;
+the port is fixed rather than ephemeral so the URL survives a restart and can be
+bookmarked. If the port is taken the server says so and names an alternative instead of
+quietly moving.
+
+Or without cloning:
+
+    npx github:8ballbb/claude-atlas
+
+> **Not** `npx claude-atlas` — that name on npm belongs to an unrelated project
+> (`bernabranco/claude-atlas`). This one is not published to npm.
 
 ## What it shows
 
