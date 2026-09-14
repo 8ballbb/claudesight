@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import os from 'node:os'
+import { diffText } from './linediff.js'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { moveToTrash } from './trash.js'
@@ -104,6 +105,27 @@ export function createVersion(target, label, home = os.homedir()) {
 
   refreshIndex(home)
   return { ok: true, version: meta }
+}
+
+// What will a restore actually change? Until now the only way to know was to
+// restore and look. The bytes were always here; nothing new is read from disk
+// that the app was not already reading.
+export function compareVersion(target, id, home = os.homedir()) {
+  const snapshot = readVersion(target, id, home)
+  let current = null
+  let currentReason = null
+  try {
+    current = fs.readFileSync(target, 'utf8')
+  } catch (err) {
+    currentReason = err.code === 'ENOENT' ? 'the file no longer exists' : `the file could not be read (${err.code})`
+  }
+  if (snapshot === null) {
+    return { state: 'unverifiable', reason: 'this version snapshot could not be read', lines: [], addCount: 0, delCount: 0 }
+  }
+  if (current === null) {
+    return { state: 'unverifiable', reason: currentReason, lines: [], addCount: 0, delCount: 0 }
+  }
+  return diffText(snapshot, current, { beforeLabel: 'the version', afterLabel: 'the current file' })
 }
 
 export function readVersion(target, id, home = os.homedir()) {

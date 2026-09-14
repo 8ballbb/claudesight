@@ -6,7 +6,7 @@ import { createSecurity } from './security.js'
 import { buildInventory, buildProjectInventory } from './api.js'
 import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
-import { listVersions, createVersion, readVersion, deleteVersion } from './versions.js'
+import { listVersions, createVersion, readVersion, deleteVersion, compareVersion } from './versions.js'
 import { createSkill } from './create.js'
 
 const json = (res, status, body, headers = {}) => {
@@ -200,6 +200,11 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
           if (url.pathname === '/api/versions/create') {
             const r = createVersion(entry.path, body.label)
             return json(res, r.ok ? 200 : 409, r)
+          }
+
+          if (url.pathname === '/api/versions/diff') {
+            const d = compareVersion(entry.path, String(body.versionId ?? ''))
+            return json(res, 200, { ok: true, ...d })
           }
 
           if (url.pathname === '/api/versions/delete') {

@@ -93,6 +93,38 @@ function factsFor(item, doc) {
   return []
 }
 
+// Every state names itself. An empty pane after pressing Compare would say
+// "no difference" to a reader when it might mean "could not be computed".
+function Diff({ result }) {
+  if (!result) return <p className={s.hint}>Comparing…</p>
+  if (result.state === 'identical') {
+    return <p className={s.hint}>Identical to the file on disk — restoring would change nothing.</p>
+  }
+  if (result.state !== 'changed') {
+    return <p className={`${s.hint} ${s.bad}`}>Could not compare: {result.reason}</p>
+  }
+  return (
+    <div className={s.diff}>
+      {/* Stated in the direction the reader cares about. The diff was computed
+          version -> current, so a line only in the version is one a restore
+          would bring back, and a line only in the current file is one it would
+          take away. Saying "N changes" would leave which is which unsaid. */}
+      <p className={s.diffHead}>
+        Restoring would add <b>{result.delCount}</b> line{result.delCount === 1 ? '' : 's'}
+        {' '}and remove <b>{result.addCount}</b>.
+      </p>
+      <ol className={s.diffLines}>
+        {result.lines.map((l, i) => (
+          <li key={i} className={s[l.type]}>
+            <span className={s.diffMark}>{l.type === 'add' ? '\u2212' : l.type === 'del' ? '+' : '\u00a0'}</span>
+            <span className={s.diffText}>{l.text || '\u00a0'}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 const when = (iso) => {
   try { return new Date(iso).toLocaleString() } catch { return iso }
 }
@@ -108,6 +140,8 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
   const [versions, setVersions] = useState(null)
   const [label, setLabel] = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
+  // Keyed by version id, so opening one comparison closes the last.
+  const [diff, setDiff] = useState(null)
 
   const cls = item.writability.class
   const editable = cls === 'free' || cls === 'exec'
@@ -170,6 +204,15 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
     } else {
       setStatus({ tone: 'bad', text: `Could not save a version: ${r.error}` })
     }
+  }
+
+  // What a restore would actually change. The bytes were always stored; only
+  // the comparison is new.
+  const compare = async (versionId) => {
+    if (diff?.id === versionId) { setDiff(null); return }
+    setDiff({ id: versionId, result: null })
+    const r = await post('/api/versions/diff', { id: item.id, versionId })
+    setDiff({ id: versionId, result: r })
   }
 
   const restore = async (versionId, confirmToken) => {
@@ -383,11 +426,16 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
                     ) : (
                       <div className={s.actions}>
                         <button className={`${s.btn} ${s.btnQuiet}`} disabled={busy}
+                          onClick={() => compare(v.id)}>
+                          {diff?.id === v.id ? 'Hide' : 'Compare'}
+                        </button>
+                        <button className={`${s.btn} ${s.btnQuiet}`} disabled={busy}
                           onClick={() => restore(v.id)}>Restore</button>
                         <button className={s.linkDanger} disabled={busy}
                           onClick={() => setPendingDelete(v.id)}>Delete</button>
                       </div>
                     )}
+                    {diff?.id === v.id && <Diff result={diff.result} />}
                   </li>
                 ))}
               </ul>
