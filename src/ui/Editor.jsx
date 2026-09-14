@@ -36,6 +36,7 @@ const READ_ERROR = {
   // happened and send the reader looking for the wrong cause.
   'missing-declared': 'There is no file at this path. The command above names it, so Claude Code runs this hook and it fails every time. Create the file to fix it.',
   'unknown id': 'This artifact is no longer in the inventory. Reload to rescan.',
+  unreachable: 'The server did not answer, so this file was never read. Nothing below is its contents.',
 }
 
 function factsFor(item, doc) {
@@ -126,7 +127,7 @@ const when = (iso) => {
   try { return new Date(iso).toLocaleString() } catch { return iso }
 }
 
-export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) {
+export default function Editor({ item, post, onClose, onSaved, onDirtyChange, frozen }) {
   const [doc, setDoc] = useState(null)
   const [readErr, setReadErr] = useState(null)
   const [text, setText] = useState('')
@@ -152,6 +153,10 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
       if (!live) return
       if (d.error) setReadErr(d)
       else { setDoc(d); setText(d.content) }
+    }).catch(() => {
+      // Without this the pane sits on "Reading…" forever, which claims a read
+      // is still happening when nothing is listening.
+      if (live) setReadErr({ error: 'unreachable' })
     })
     return () => { live = false }
   }, [item.id, openable, post])
@@ -242,6 +247,8 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
     ? 'missing-declared'
     : readErr?.error
   const dirty = doc && text !== doc.content
+  // Nothing that writes may look available once the server is gone.
+  const busyOrFrozen = busy || frozen
   // What saving would change, against what was on disk when this was opened.
   // Computed here rather than server-side: the engine has no Node dependency,
   // and a round trip per keystroke would be absurd.
@@ -365,7 +372,7 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
 
             {editable && !confirm && (
               <div className={s.actions}>
-                <button className={s.btn} onClick={() => save()} disabled={busy || !dirty}>
+                <button className={s.btn} onClick={() => save()} disabled={busyOrFrozen || !dirty}>
                   {busy ? 'Working…' : 'Save'}
                 </button>
                 {dirty && (
@@ -447,12 +454,12 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
                     ) : (
                       <div className={s.actions}>
                         <button className={`${s.btn} ${s.btnQuiet}`} disabled={busy}
-                          onClick={() => compare(v.id)}>
+                          onClick={() => compare(v.id)} disabled={frozen}>
                           {diff?.id === v.id ? 'Hide' : 'Compare'}
                         </button>
-                        <button className={`${s.btn} ${s.btnQuiet}`} disabled={busy}
+                        <button className={`${s.btn} ${s.btnQuiet}`} disabled={busyOrFrozen}
                           onClick={() => restore(v.id)}>Restore</button>
-                        <button className={s.linkDanger} disabled={busy}
+                        <button className={s.linkDanger} disabled={busyOrFrozen}
                           onClick={() => setPendingDelete(v.id)}>Delete</button>
                       </div>
                     )}

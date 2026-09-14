@@ -81,6 +81,26 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
           return res.end(index)
         }
 
+        // Cheap enough to poll: no readers run, nothing is walked. The UI uses
+        // it to notice the server is gone rather than showing an inventory it
+        // can no longer verify.
+        if (url.pathname === '/api/ping') {
+          return json(res, 200, { ok: true })
+        }
+
+        // Stopping a local tool you started should not require finding the
+        // terminal you started it in. Behind the same Origin/Host/JSON gate as
+        // every write, so a page on another site cannot reach it.
+        if (url.pathname === '/api/quit' && req.method === 'POST') {
+          json(res, 200, { ok: true, stopping: true })
+          // Let the response flush before the process goes.
+          res.on('finish', () => {
+            server.close()
+            setTimeout(() => process.exit(0), 50)
+          })
+          return undefined
+        }
+
         if (url.pathname === '/api/inventory') {
           inventory = buildInventory(root)
           // `table` is deliberately stripped from the response — it holds absolute

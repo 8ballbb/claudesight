@@ -5,12 +5,18 @@ import Projects from './Projects.jsx'
 import { useCloseGuard, CloseGuard } from './closeGuard.jsx'
 import s from './app.module.css'
 
+// Every write goes through here. A hidden tab polls nothing, so the moment a
+// person actually does something is the other moment the server's absence has
+// to be reported — not swallowed as a generic failure.
+let onServerLost = () => {}
+export const setServerLostHandler = (fn) => { onServerLost = fn }
+
 export const post = (url, body) =>
   fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
-  }).then((r) => r.json())
+  }).then((r) => r.json()).catch((err) => { onServerLost(); throw err })
 
 const THEMES = [
   ['Instrument', [['instrument-dark', 'Dark'], ['instrument-light', 'Light']]],
@@ -102,7 +108,7 @@ function NewSkill({ onCreated }) {
   )
 }
 
-function GlobalView({ inv, reload, guard }) {
+function GlobalView({ inv, reload, guard, frozen }) {
   const [created, setCreated] = useState(null)
 
   const afterCreate = async (r) => {
@@ -137,6 +143,7 @@ function GlobalView({ inv, reload, guard }) {
           onClose={() => guard.request(null)}
           onDirtyChange={guard.onDirtyChange}
           onSaved={reload}
+          frozen={frozen}
         />
       )}
     </div>
@@ -147,6 +154,12 @@ export default function App() {
   const [page, setPage] = useState('global')
   const [inv, setInv] = useState(null)
   const [failed, setFailed] = useState(null)
+  // 'live' | 'gone'. A page that keeps rendering an inventory after the server
+  // has stopped is asserting something it can no longer verify — the same sin
+  // as reporting a bare zero, one layer up.
+  const [server, setServer] = useState('live')
+  const [readAt, setReadAt] = useState(null)
+  const [quitting, setQuitting] = useState(false)
   const guard = useCloseGuard()
 
   const reload = useCallback(async () => {
@@ -155,14 +168,51 @@ export default function App() {
       if (!r.ok) throw new Error(`HTTP ${r.status}`)
       const fresh = await r.json()
       setInv(fresh)
+      setServer('live')
+      setReadAt(new Date())
       return fresh
     } catch (e) {
       setFailed(e.message)
+      setServer('gone')
       return null
     }
   }, [])
 
   useEffect(() => { reload() }, [reload])
+
+  // Poll only while the tab is visible — a background tab does not need to
+  // know, and waking one up to find out is rude. Two consecutive failures
+  // before declaring the server gone, so a single hiccup does not flap.
+  useEffect(() => {
+    const tick = async () => {
+      if (document.hidden) return
+      try {
+        const r = await fetch('/api/ping')
+        setServer(r.ok ? 'live' : 'gone')
+      } catch {
+        // A refused connection to 127.0.0.1 is not a flaky network, so one
+        // failure is enough. A later success flips it back — but only in a
+        // visible tab, since a hidden one does not poll at all. That is why
+        // the banner tells you to reload rather than promising recovery.
+        setServer('gone')
+      }
+    }
+    tick()
+    const id = window.setInterval(tick, 5000)
+    document.addEventListener('visibilitychange', tick)
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick) }
+  }, [])
+
+  useEffect(() => {
+    setServerLostHandler(() => setServer('gone'))
+    return () => setServerLostHandler(() => {})
+  }, [])
+
+  const quit = async () => {
+    setQuitting(false)
+    try { await post('/api/quit', {}) } catch { /* the server going is the point */ }
+    setServer('gone')
+  }
 
   if (failed) return <p className={s.loading}>Could not load inventory: {failed}</p>
   if (!inv) return <p className={s.loading}>Reading configuration…</p>
@@ -194,11 +244,32 @@ export default function App() {
           {page === 'global' && <><b>{total}</b> artifacts · <b>{editable}</b> editable</>}
         </span>
         <ThemePicker />
+        {server === 'live' && (
+          quitting ? (
+            <span className={s.quitConfirm}>
+              <button className={`${s.btn} ${s.btnDanger}`} onClick={quit}>Stop it</button>
+              <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setQuitting(false)}>Cancel</button>
+            </span>
+          ) : (
+            <button className={s.linkQuiet} onClick={() => setQuitting(true)} title="Stop the claude-atlas server">
+              quit
+            </button>
+          )
+        )}
       </header>
 
+      {server === 'gone' && (
+        <p className={s.serverGone}>
+          <b>The claude-atlas server has stopped.</b> This page is showing what it last read
+          {readAt ? ` at ${readAt.toLocaleTimeString()}` : ''} — it is not being checked against
+          disk any more, and nothing here can be saved. Run <code>npm start</code> again, then
+          reload.
+        </p>
+      )}
+
       {page === 'global'
-        ? <GlobalView inv={inv} reload={reload} guard={guard} />
-        : <Projects post={post} guard={guard} />}
+        ? <GlobalView inv={inv} reload={reload} guard={guard} frozen={server === 'gone'} />
+        : <Projects post={post} guard={guard} frozen={server === 'gone'} />}
 
       <CloseGuard pending={guard.pending} onKeep={guard.keepEditing} onDiscard={guard.discard} />
     </main>

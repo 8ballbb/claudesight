@@ -15,7 +15,7 @@ const MARKER_LABEL = {
   skills: 'skills', claudeDir: '.claude', pluginSource: 'plugin source', git: 'git',
 }
 
-export default function Projects({ post, guard }) {
+export default function Projects({ post, guard, frozen }) {
   const [found, setFound] = useState(null)
   const [selected, setSelected] = useState(null)
   const [inv, setInv] = useState(null)
@@ -176,6 +176,7 @@ export default function Projects({ post, guard }) {
           onClose={() => guard.request(null)}
           onDirtyChange={guard.onDirtyChange}
           onSaved={() => selected && pick(selected)}
+          frozen={frozen}
         />
       )}
     </div>
