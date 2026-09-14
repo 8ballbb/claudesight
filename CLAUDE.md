@@ -47,6 +47,11 @@ installed from a personal repo is as much a plugin as an official one.
 `history.jsonl`, and transcript `cwd`s. Measured: 0.65s for 11 exact results, against 0.23s
 for a scan that returned 12 hits of which 4 were real. Do not add a scan.
 
+**Every diff is computed in the direction of its action.** `add` always means "this
+action adds this line", for both the save preview and the version compare; only the verb
+differs. The restore diff was once computed backwards and corrected in the view, which
+survived exactly until the CSS was updated without the JSX. Never reintroduce a sign flip.
+
 **Deletion moves to the Trash.** `trash.js` refuses rather than unlinking when it cannot
 identify a trash mechanism. Never add an `fs.unlink` fallback.
 
@@ -78,6 +83,13 @@ go red.
 looking: a plugin row that hung on `EISDIR`, a theme transition that left the page painted in
 the previous palette, a project panel drawn below the fold so clicking appeared to do nothing.
 
+**The pattern behind most of the bugs found here.** Every defect worth fixing so far has
+had one shape: the app already held a fact and dropped it on the last step to the screen.
+A missing hook script, a dirty editor buffer, the denied paths behind a count, a malformed
+settings file that vanished entirely, the parse position, the drift versions, the selected
+project. When looking for what to improve, look for what is computed and not surfaced
+before looking for what needs computing.
+
 **Measure instead of asserting.** Claims about this codebase that turned out false include
 "session files carry a tail summary" (1 in 20 do) and "therefore we need an index" (a full
 113 MB parse takes 0.75s).
@@ -97,10 +109,24 @@ until `npm run build`.
 
 ## Not built yet
 
-Agent and command *creation* (only skills can be created), token costs, a sessions view,
-managed-policy source display, and cloud artifacts.
+No search, sort or filter anywhere. No keyboard navigation beyond Escape. No sessions
+view, though transcripts are already parsed for project discovery. No token-cost
+accounting — and note that the app could only ever estimate it by measuring text, since
+the real figures come from Claude Code itself; an estimate presented as authoritative
+would be a new way of lying. Agent and command *creation* (only skills can be created).
+Managed-policy source display. No multi-machine anything.
 
 Partly done: the declared-vs-used join. A hook or statusline script that is declared but
-missing or unreadable is now surfaced as broken at both scopes. Still unjoined: agent and
-command declarations naming an uninstalled plugin, and settings keys silently shadowed by
-a stricter managed-scope value.
+missing or unreadable is surfaced as broken at both scopes. Still unjoined: agent and
+command declarations naming an uninstalled plugin, settings keys silently shadowed by a
+stricter managed-scope value, and MCP servers whose `command` is not on PATH — the same
+shape as the broken-hook case, applied to `.mcp.json`.
+
+## How the backlog has been chosen
+
+Four tournaments of competing agents, judged on a fixed rubric. What they were good at
+was reading the code and naming where a fact gets dropped; what they consistently got
+wrong was the size of the problem — three times the winning idea named a real defect and
+checking it against a running program found something worse a line away. Treat their
+output as a map of where to look, never as a verdict. Verify every claim, including the
+citations: one proposal specified `.ts` files for a repo that has none.

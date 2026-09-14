@@ -1,7 +1,7 @@
 # claude-atlas — Design
 
 **Date:** 2026-09-11
-**Revision:** 4 (see §14)
+**Revision:** 5 (see §14)
 **Status:** In review
 **Author:** Andrew Poole (with Claude)
 
@@ -388,7 +388,34 @@ three-way merge UI is cut as premature.)
 Only Stale registry entries and orphaned backups. Artifacts are **never** deleted in v1;
 plugin removal is surfaced as a copyable `claude plugin uninstall` command.
 
-### 8.6 Backups
+### 8.6 Comparison
+
+Two surfaces, one engine (`src/server/linediff.js`, no dependency, runs in both Node and
+the browser). **Preview changes** diffs the buffer against what was on disk when the file
+was opened; **Compare** diffs a stored version against the current file. Both are computed
+in the direction of the action, so `add` always means "this action adds this line" — the
+view never flips signs.
+
+The engine returns three states. `identical` and `changed` are self-explanatory;
+`unverifiable` carries a reason and is **never** downgraded to `identical`. A restore or a
+save proceeds whether or not the diff engine understood the file, so silence would read as
+"nothing will change" — §5's invariant, one level down. It covers an unreadable side,
+binary content, and files past a line or byte limit; when a limit bites, the size is named
+rather than a truncated prefix being presented as the whole.
+
+For a file that Claude Code executes, the diff is embedded in the §9.3 confirmation. The
+key list there names which values become executable; it says nothing about the rest of the
+file the user is agreeing to install.
+
+### 8.7 Unsaved edits
+
+Every path that unmounts or remounts the editor routes through one guard: the close
+button, Escape, selecting another artifact (a remount, since the editor is keyed on the
+item id), both nav tabs, and switching project. `dirty` was previously computed and used
+only to disable a button, so five paths discarded the buffer silently. The file-writing
+discipline in §8.4 and §8.6 protects the file; nothing protected what had been typed.
+
+### 8.8 Backups
 
 `<original>.atlas-<timestamp>.bak` **beside the original**, inheriting that directory's
 permissions and any corporate DLP or Time Machine exclusion already covering `~/.claude`.
@@ -410,9 +437,13 @@ code execution primitive and is treated as one.
 
 ### 9.1 Transport
 
-Bind `server.listen(0,'127.0.0.1')` — ephemeral port, URL derived from
-`server.address()` only. `EADDRINUSE` is fatal, never a fallback, so a port squatter cannot
-phish the credential. No tunnel, no LAN bind, no remote mode.
+Bind `127.0.0.1` on a **fixed port**, 7717 by default, `--port` to change it. The URL is
+derived from `server.address()` only. A fixed port is what makes the URL bookmarkable
+across restarts; revisions 2-4 used an ephemeral one, so every restart handed the user a
+new address. `EADDRINUSE` is fatal and names the alternative — never a silent fallback,
+since a tool whose address moves on its own is the problem this replaced, and a port
+squatter must not be able to stand in for us. No tunnel, no LAN bind, no remote mode, and
+no outbound requests of any kind.
 
 ### 9.2 Authentication
 
@@ -457,8 +488,11 @@ Gating is therefore on the **diff's value shape**: any write introducing or modi
 string at a known-executable key path, **or** heuristically executable (resolves to an
 existing executable, contains shell metacharacters, begins with a path), triggers
 confirmation. The confirmation is a **server-side two-step** — `POST` → `409
-confirmation_required` + nonce → `POST` with nonce — never a client-side modal, which a
-direct API call bypasses. It renders the exact before/after string, and branches by hook
+confirmation_required` + `confirmToken` → `POST` with that token — never a client-side modal, which a
+direct API call bypasses. The token is HMAC-bound to both the target and the content, so approving one string
+cannot install another. Since revision 5 the confirmation also carries the file's full
+diff (§8.6): the key list names which values become executable, not the rest of what is
+being installed. It renders the exact before/after string, and branches by hook
 `type`, since `http`/`mcp_tool`/`prompt`/`agent` hooks have no shell command to name.
 
 ### 9.4 Path handling
@@ -616,6 +650,28 @@ domain-accuracy, product). Material changes:
 17. **Cut**: multi-root switcher, three-way merge UI, backup GC, three-tier epistemology,
     `rare-kinds/` per-kind fixtures, golden-sample-per-version parser.
 18. **§5 stack decided** — Vite + React + CSS modules.
+
+**Revision 5 — 2026-09-14 (post-Phase-1, feature work).** Changes driven by four
+tournaments of competing agents and, in every case, by verifying their claims against a
+running program:
+
+1. **§9.2 rewritten** — the URL credential removed entirely and the port fixed. The
+   single-use nonce defended only against non-browser local clients, which can read and
+   write `~/.claude` directly, while making the launch link one-shot and locking the author
+   out of a running server.
+2. **§8.6 added** — comparison, with `unverifiable` as a first-class state. Four
+   independent researchers found this gap in four unrelated product families.
+3. **§8.7 added** — the unsaved-edit guard.
+4. **§5 invariant applied in four new places** — a hook whose script is missing, a
+   malformed `settings.json` that previously produced no item at all, denied directories
+   named rather than counted, and plugin drift stated as versions rather than a word.
+5. **§10 correction** — `positionOf` returned line 1, column 1 whenever V8 reported no
+   position, which it does for most multi-line JSON errors. Unknown is now null, and the
+   UI says the parser gave no position rather than inventing one. A confident wrong answer
+   is worse than an admitted gap.
+6. **Agents, commands and plugin-source repos read** — on a machine with no
+   `~/.claude/agents`, all 20 loadable agents come from plugins; a reader that looked only
+   at the user directory reported an honest-looking zero.
 
 **Revision 4 — 2026-09-12 (during implementation).** One correction, found by Task 4's
 real-machine verification:

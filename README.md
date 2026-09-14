@@ -32,11 +32,32 @@ lose the work later. Managed policy, marketplace checkouts, session transcripts 
 
 Deletion moves the file to the Trash. Nothing is unlinked.
 
+## Broken configuration, said out loud
+
+A hook whose script has been deleted is shown as broken rather than dropped — Claude Code
+still fires it. A `settings.json` or `.mcp.json` that will not parse keeps its row and
+reports the parse position, or says the parser did not give one rather than guessing. A
+directory that could not be read is named, not counted. A plugin whose installed version
+differs from its manifest says which is which.
+
+## Editing
+
+Unsaved edits survive every way of leaving a file — the close button, Escape, clicking
+another artifact, switching page — each asks first.
+
+**Preview changes** shows what a save would do before it touches disk, and the same diff
+appears inside the confirmation for any file Claude Code executes as shell.
+
 ## Versions
 
 Editable files can be versioned on demand with an explicit button — not on every save.
 Versions live outside your config, in `~/.claude-atlas/versions/`, indexed so any file's
 history can be found and restored.
+
+**Compare** shows what restoring a version would change, before you restore it. Both
+diffs are stated in the direction of the action: a `+` line is one the action adds. When
+a comparison cannot be computed — an unreadable side, binary content, a file past the
+size limit — it says so and why, and is never reported as "no change".
 
 ## Safety
 
@@ -44,6 +65,7 @@ history can be found and restored.
 - Every API request must carry a matching `Origin` and `Host`, and every write must be
   `application/json`. Those three checks are what stop a page on another site from
   driving this API; see §9.2 of the spec for why there is no secret in the URL.
+- No outbound requests. No telemetry, no account, no cloud, no LLM calls.
 - Writing a file that Claude Code executes as shell requires a second confirmation
   naming the exact command, bound by HMAC to that file and that content.
 - Every write is backed up beside the original at mode `0600`, under a lockfile, with a
@@ -52,7 +74,7 @@ history can be found and restored.
 ## Development
 
     npm install
-    npm test          # 215 tests
+    npm test          # 275 tests
     npm run lint
     npm run build     # required before the CLI can serve the UI
 
