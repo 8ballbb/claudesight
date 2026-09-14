@@ -29,11 +29,22 @@ export function readFileSafe(file) {
 
 // Never include the raw parser message — Node embeds input context in it,
 // which would leak secrets into logs. Spec §9.6.
+//
+// V8 reports a position for only some syntax errors. For the common multi-line
+// cases it gives none, and this used to return line 1 column 1 regardless —
+// a confident, wrong answer pointing at the top of a file whose error is
+// further down. Unknown is now null, which the UI can say out loud.
 function positionOf(text, err) {
-  const m = /position (\d+)/.exec(err.message || '')
-  if (!m) return { line: 1, column: 1 }
-  const offset = Number(m[1])
-  const before = text.slice(0, offset)
+  const msg = err.message || ''
+
+  // Newer V8 states it outright: "... at position 7 (line 1 column 8)".
+  const explicit = /line (\d+) column (\d+)/.exec(msg)
+  if (explicit) return { line: Number(explicit[1]), column: Number(explicit[2]) }
+
+  const at = /position (\d+)/.exec(msg)
+  if (!at) return { line: null, column: null }
+
+  const before = text.slice(0, Number(at[1]))
   const lines = before.split('\n')
   return { line: lines.length, column: lines[lines.length - 1].length + 1 }
 }

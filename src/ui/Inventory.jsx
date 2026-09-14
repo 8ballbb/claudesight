@@ -47,6 +47,11 @@ const EDITABLE = new Set(['free', 'exec'])
 
 function meta(item) {
   if (item.kind === 'memory') return `${item.bytes} bytes`
+  // A broken config file is the case worth reading from across the room, and
+  // its position is worth more than its key count.
+  if (item.state === 'malformed') return item.line
+    ? `invalid JSON at line ${item.line}, column ${item.column}`
+    : 'invalid JSON — the parser did not say where'
   if (item.kind === 'settings') return `${item.keys} keys`
   if (item.kind === 'mcp') return `${item.servers} servers`
   if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
@@ -59,7 +64,14 @@ function meta(item) {
   if (item.kind === 'skill' || item.kind === 'agent' || item.kind === 'command') {
     return item.description ?? ''
   }
-  if (item.kind === 'plugin') return [item.recordedVersion, item.scope].filter(Boolean).join(' · ')
+  if (item.kind === 'plugin') {
+    // The versions were already on the wire; the row showed only the word
+    // "drift", which names a problem without naming its size.
+    const version = item.drift === 'drifted'
+      ? `${item.recordedVersion ?? '—'} installed, manifest says ${item.manifestVersion ?? '—'}`
+      : item.recordedVersion
+    return [version, item.scope].filter(Boolean).join(' · ')
+  }
   if (item.kind === 'other') {
     return item.entryType === 'directory'
       ? 'directory — no reader for this yet'
@@ -130,6 +142,7 @@ function useOpen(key, fallback) {
 function Chips({ item }) {
   const out = []
   if (item.broken) out.push(['broken', s.alarm])
+  else if (item.state === 'malformed') out.push(['malformed', s.alarm])
   else if (item.state && item.state !== 'ok') out.push([item.state, s.caution])
   if (item.malformed) out.push(['malformed', s.alarm])
   if (item.unreadable) out.push([item.unreadable, s.alarm])

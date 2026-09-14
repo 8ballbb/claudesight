@@ -75,6 +75,17 @@ function factsFor(item, doc) {
           : null],
     ].filter(([, v]) => v)
   }
+  if (item.kind === 'settings' || item.kind === 'mcp') {
+    return [
+      ['state', item.state],
+      [item.kind === 'mcp' ? 'servers' : 'keys', item.state === 'ok' ? String(item.kind === 'mcp' ? item.servers : item.keys) : null],
+      // Guarded on state, not on the frontmatter `malformed` boolean — only
+      // one of those two carries a position.
+      ['error at', item.state === 'malformed'
+        ? (item.line ? `line ${item.line}, column ${item.column}` : 'position not reported by the parser')
+        : null],
+    ].filter(([, v]) => v)
+  }
   if (item.kind === 'memory') {
     const bytes = doc ? new TextEncoder().encode(doc.content).length : item.bytes
     return [['size', `${bytes} bytes`], ['state', item.state]].filter(([, v]) => v)

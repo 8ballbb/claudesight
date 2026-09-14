@@ -82,6 +82,11 @@ the previous palette, a project panel drawn below the fold so clicking appeared 
 "session files carry a tail summary" (1 in 20 do) and "therefore we need an index" (a full
 113 MB parse takes 0.75s).
 
+**Never fabricate a value where the truth is unknown.** `positionOf` in fsread.js used
+to return line 1, column 1 whenever V8 declined to report a position — which it does for
+most multi-line JSON errors. A confident wrong answer that sends the reader to the top of
+the file is worse than `null` and a sentence saying the parser did not say.
+
 **A free identifier can be a browser global.** Deleting local `open` state left
 ``${open ? s.split : ''}`` resolving to `window.open` — always truthy, no lint error, no
 build error, no console error. The layout was simply wrong forever. When you remove a

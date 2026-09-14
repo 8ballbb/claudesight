@@ -47,10 +47,30 @@ describe('readJsonSafe', () => {
   it('parses valid JSON', () => {
     expect(readJsonSafe(path.join(tmp, 'good.json')).value).toEqual({ a: 1 })
   })
-  it('returns malformed with a line number, not a throw', () => {
+  it('returns malformed rather than throwing', () => {
     const r = readJsonSafe(path.join(tmp, 'bad.json'))
     expect(r.state).toBe('malformed')
-    expect(r.line).toBeGreaterThan(0)
+  })
+
+  it('reports a position when the parser gives one', () => {
+    const f = path.join(tmp, 'pos.json')
+    fs.writeFileSync(f, '{"a":1,,}')
+    const r = readJsonSafe(f)
+    expect(r.state).toBe('malformed')
+    expect(r.line).toBe(1)
+    expect(r.column).toBeGreaterThan(1)
+  })
+
+  it('reports null rather than guessing line 1 when the parser gives none', () => {
+    // V8 omits the position for most multi-line errors. Answering "line 1,
+    // column 1" would send the reader to the top of a file whose error is
+    // three lines down — worse than saying nothing.
+    const f = path.join(tmp, 'nopos.json')
+    fs.writeFileSync(f, '{\n  "a": 1,\n  "b": ,\n}\n')
+    const r = readJsonSafe(f)
+    expect(r.state).toBe('malformed')
+    expect(r.line).toBeNull()
+    expect(r.column).toBeNull()
   })
   it('returns absent for a missing file', () => {
     expect(readJsonSafe(path.join(tmp, 'gone.json')).state).toBe('absent')

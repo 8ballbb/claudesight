@@ -57,6 +57,8 @@ export function buildProjectInventory(projectPath) {
       label: name,
       keys: r.state === 'ok' ? Object.keys(r.value).length : 0,
       state: r.state,
+      line: r.line ?? null,
+      column: r.column ?? null,
     })
   }
   add('settings', settingsItems)
@@ -68,6 +70,8 @@ export function buildProjectInventory(projectPath) {
     label: '.mcp.json',
     servers: mcp.state === 'ok' ? Object.keys(mcp.value.mcpServers ?? {}).length : 0,
     state: mcp.state,
+    line: mcp.line ?? null,
+    column: mcp.column ?? null,
   }])
 
   // readSkills expects a root holding skills/ — a project's .claude/ is that.
@@ -219,10 +223,20 @@ export function buildInventory(root) {
     depthExceeded: n.depthExceeded ?? false,
   })))
 
+  // A malformed settings.json used to produce NO item at all, so the group
+  // rendered empty — a bare zero for the most important file here, and exactly
+  // when you would open this tool. Project scope already got this right; the
+  // asymmetry meant the app was honest at one scope and silent at the other.
   const s = readSettings(root)
-  add('settings', s.result.state === 'ok'
-    ? [{ path: s.path, label: 'settings.json', keys: Object.keys(s.result.value).length }]
-    : [])
+  add('settings', s.result.state === 'absent' ? [] : [{
+    path: s.path,
+    label: 'settings.json',
+    keys: s.result.state === 'ok' ? Object.keys(s.result.value).length : 0,
+    state: s.result.state,
+    // Computed by positionOf() in fsread.js and dropped here until now.
+    line: s.result.line ?? null,
+    column: s.result.column ?? null,
+  }])
 
   const scripts = s.result.state === 'ok' ? extractScripts(s.result.value, root) : []
   // Same rule as project scope, deliberately. Fixing one site and not the
