@@ -49,7 +49,11 @@ function meta(item) {
   if (item.kind === 'memory') return `${item.bytes} bytes`
   if (item.kind === 'settings') return `${item.keys} keys`
   if (item.kind === 'mcp') return `${item.servers} servers`
-  if (item.kind === 'hookScript' || item.kind === 'statusLineScript') return item.keyPath
+  if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
+    if (item.state === 'absent') return `${item.keyPath} — no file at this path`
+    if (item.state === 'denied') return `${item.keyPath} — file cannot be read`
+    return item.keyPath
+  }
   // The band header already names the plugin, so the description is all that
   // is left worth showing on the row.
   if (item.kind === 'skill' || item.kind === 'agent' || item.kind === 'command') {
@@ -125,7 +129,8 @@ function useOpen(key, fallback) {
 
 function Chips({ item }) {
   const out = []
-  if (item.state && item.state !== 'ok') out.push([item.state, s.caution])
+  if (item.broken) out.push(['broken', s.alarm])
+  else if (item.state && item.state !== 'ok') out.push([item.state, s.caution])
   if (item.malformed) out.push(['malformed', s.alarm])
   if (item.unreadable) out.push([item.unreadable, s.alarm])
   if (item.drift === 'drifted') out.push(['drift', s.alarm])

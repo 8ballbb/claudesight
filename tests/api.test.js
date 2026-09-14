@@ -50,6 +50,21 @@ describe('api', () => {
     expect(agents.items[0].writability.class).toBe('redirect')
   })
 
+  it('shows a global hook whose script is missing — the same rule as project scope', async () => {
+    // Both drop sites had to change together. If only one had, the app would
+    // be honest at one scope and silent at the other.
+    fs.writeFileSync(path.join(root, 'settings.json'), JSON.stringify({
+      model: 'claude-opus-5',
+      hooks: { PreToolUse: [{ hooks: [{ command: 'bash ~/.claude/hooks/gone.sh' }] }] },
+    }))
+    const inv = await (await call('/api/inventory')).json()
+    const scripts = inv.groups.find((g) => g.kind === 'scripts')
+    const broken = scripts.items.filter((i) => i.broken)
+    expect(broken).toHaveLength(1)
+    expect(broken[0]).toMatchObject({ label: 'gone.sh', state: 'absent' })
+    fs.writeFileSync(path.join(root, 'settings.json'), '{"model":"claude-opus-5"}')
+  })
+
   it('gives every item an opaque id, not a path', async () => {
     const inv = await (await call('/api/inventory')).json()
     const ids = inv.groups.flatMap((g) => g.items.map((i) => i.id))

@@ -81,6 +81,25 @@ describe('buildProjectInventory', () => {
     expect(scripts.items[0].writability.class).toBe('exec')
   })
 
+  it('shows a hook whose script is missing, rather than dropping it', () => {
+    // Claude Code still fires this hook on every matching tool use; it just
+    // fails. Silence here is the app lying about what is configured.
+    write('.claude/settings.json', JSON.stringify({
+      hooks: { PreToolUse: [{ hooks: [{ command: 'bash ./scripts/deleted.sh' }] }] },
+    }))
+    const scripts = buildProjectInventory(project).groups.find((g) => g.kind === 'scripts')
+    expect(scripts.items).toHaveLength(1)
+    expect(scripts.items[0]).toMatchObject({ label: 'deleted.sh', state: 'absent', broken: true })
+  })
+
+  it('does not invent a script for a hook that runs an inline command', () => {
+    write('.claude/settings.json', JSON.stringify({
+      hooks: { PreToolUse: [{ hooks: [{ command: 'echo checking' }] }] },
+    }))
+    const scripts = buildProjectInventory(project).groups.find((g) => g.kind === 'scripts')
+    expect(scripts.items).toHaveLength(0)
+  })
+
   it('resolves a hook written against $CLAUDE_PROJECT_DIR', () => {
     write('scripts/fmt.sh', '#!/bin/sh\n')
     write('.claude/settings.json', JSON.stringify({

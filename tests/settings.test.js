@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -88,6 +88,60 @@ describe('extractScripts', () => {
       expect(refs[0].body.value).toContain('echo real')
     } finally {
       fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
+
+// The bug this fixes: a bare null meant both "no script named" and "the script
+// is gone", so callers could only filter, and a broken hook vanished from the
+// UI while Claude Code went on executing it.
+describe('extractScripts: a declared script that does not resolve', () => {
+  let dir
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-ref-')) })
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+  const one = (command) => extractScripts({ statusLine: { command } }, dir)[0]
+
+  it('says not-declared when the command names no script at all', () => {
+    expect(one('echo hi')).toMatchObject({ state: 'not-declared', scriptPath: null })
+  })
+
+  it('says absent when the script is missing, and still reports its path', () => {
+    const r = one('bash ./hooks/gone.sh')
+    expect(r.state).toBe('absent')
+    expect(r.scriptPath).toBe(path.join(dir, 'hooks/gone.sh'))
+  })
+
+  it('distinguishes a missing script from a command with no script', () => {
+    // The whole point. Before the fix both returned a bare null.
+    expect(one('bash ./hooks/gone.sh').state).not.toBe(one('echo hi').state)
+  })
+
+  it('says ok and reads the body when the script is there', () => {
+    fs.mkdirSync(path.join(dir, 'hooks'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'hooks/real.sh'), '#!/bin/sh\necho ok\n')
+    const r = one('bash ./hooks/real.sh')
+    expect(r.state).toBe('ok')
+    expect(r.body.state).toBe('ok')
+  })
+
+  it('does not mistake an interpreter or a flag for the missing script', () => {
+    const r = one('/usr/bin/env node --inspect ./hooks/gone.js')
+    expect(r.scriptPath).toBe(path.join(dir, 'hooks/gone.js'))
+    expect(r.state).toBe('absent')
+  })
+
+  it('reports denied when the script cannot be read', () => {
+    const locked = path.join(dir, 'locked')
+    fs.mkdirSync(locked)
+    fs.writeFileSync(path.join(locked, 'h.sh'), '#!/bin/sh\n')
+    fs.chmodSync(locked, 0o000)
+    try {
+      const r = one(`bash ${path.join(locked, 'h.sh')}`)
+      // Running as root defeats the permission bits; only assert where it holds.
+      if (r.state !== 'ok') expect(r.state).toBe('denied')
+    } finally {
+      fs.chmodSync(locked, 0o700)
     }
   })
 })

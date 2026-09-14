@@ -30,6 +30,10 @@ export function whyFor(item) {
 const READ_ERROR = {
   'not-a-file': 'This artifact is a directory, not a file — there is no text to show. Its details are above.',
   missing: 'This file has disappeared since the inventory was scanned. Reload to rescan.',
+  // Distinct from the above: this file was already known to be missing when the
+  // inventory was built. Saying it "disappeared" would invent a race that never
+  // happened and send the reader looking for the wrong cause.
+  'missing-declared': 'There is no file at this path. The command above names it, so Claude Code runs this hook and it fails every time. Create the file to fix it.',
   'unknown id': 'This artifact is no longer in the inventory. Reload to rescan.',
 }
 
@@ -61,7 +65,15 @@ function factsFor(item, doc) {
     ].filter(([, v]) => v)
   }
   if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
-    return [['bound to', item.keyPath], ['command', item.command]].filter(([, v]) => v)
+    return [
+      ['bound to', item.keyPath],
+      ['command', item.command],
+      // Named only when it is the problem — Claude Code runs this command
+      // regardless, so a missing file is a hook that fails on every trigger.
+      ['script', item.state === 'absent' ? 'missing — this hook fails every time it fires'
+        : item.state === 'denied' ? 'cannot be read — this hook fails every time it fires'
+          : null],
+    ].filter(([, v]) => v)
   }
   if (item.kind === 'memory') {
     const bytes = doc ? new TextEncoder().encode(doc.content).length : item.bytes
@@ -173,6 +185,10 @@ export default function Editor({ item, post, onClose, onSaved }) {
 
   const facts = factsFor(item, doc)
   const why = whyFor(item)
+  // A script the inventory already flagged as broken is not a stale-scan race.
+  const readKey = readErr?.error === 'missing' && item.state === 'absent'
+    ? 'missing-declared'
+    : readErr?.error
   const dirty = doc && text !== doc.content
 
   return (
@@ -233,7 +249,7 @@ export default function Editor({ item, post, onClose, onSaved }) {
         )}
 
         {openable && readErr && (
-          <p className={s.hint}>{READ_ERROR[readErr.error] ?? `Could not read: ${readErr.error}`}</p>
+          <p className={s.hint}>{READ_ERROR[readKey] ?? `Could not read: ${readErr.error}`}</p>
         )}
 
         {openable && !readErr && !doc && <p className={s.loading}>Reading…</p>}

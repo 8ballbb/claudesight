@@ -88,5 +88,9 @@ until `npm run build`.
 ## Not built yet
 
 Agent and command *creation* (only skills can be created), token costs, a sessions view,
-declared-vs-used joins, managed-policy source display, and cloud artifacts. A hook whose
-script file is missing is currently dropped silently rather than flagged as broken.
+managed-policy source display, and cloud artifacts.
+
+Partly done: the declared-vs-used join. A hook or statusline script that is declared but
+missing or unreadable is now surfaced as broken at both scopes. Still unjoined: agent and
+command declarations naming an uninstalled plugin, and settings keys silently shadowed by
+a stricter managed-scope value.

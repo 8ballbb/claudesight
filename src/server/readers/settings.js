@@ -26,29 +26,52 @@ function resolveToken(token, home, root) {
   return path.resolve(root, expanded)
 }
 
+// Returns { scriptPath, state }. The state is the whole point: a bare null
+// used to mean BOTH "this command names no script at all" (`git status`) and
+// "it names one that is missing or unreadable". Callers could only filter, so
+// a hook whose script had been deleted disappeared from the UI while Claude
+// Code went on trying to execute it — the app's own invariant, violated in
+// its own code.
+//
+//   not-declared  no path-shaped token; there is nothing to point at
+//   ok            a path-shaped token resolved to a real file
+//   absent        a path-shaped token was tried and nothing is there
+//   denied        a path-shaped token was tried and could not be read
 function scriptPathFrom(command, home, root) {
-  if (typeof command !== 'string') return null
+  if (typeof command !== 'string') return { scriptPath: null, state: 'not-declared' }
+
   let found = null
+  let candidateTried = null
+  let failure = null
+
   for (const token of command.split(/\s+/)) {
     if (token.startsWith('-')) continue
     if (!token.includes('/')) continue
     const candidate = resolveToken(token, home, root)
+    // An interpreter named by absolute path is not the script it runs.
     if (INTERPRETERS.has(path.basename(candidate))) continue
+    candidateTried = candidate
     try {
-      if (fs.statSync(candidate).isFile()) found = candidate
-    } catch { /* not a path; keep looking */ }
+      if (fs.statSync(candidate).isFile()) { found = candidate; failure = null }
+    } catch (err) {
+      failure = err.code === 'EACCES' || err.code === 'EPERM' ? 'denied' : 'absent'
+    }
   }
-  return found
+
+  if (found) return { scriptPath: found, state: 'ok' }
+  if (candidateTried) return { scriptPath: candidateTried, state: failure ?? 'absent' }
+  return { scriptPath: null, state: 'not-declared' }
 }
 
 function makeRef(kind, keyPath, command, home, root) {
-  const scriptPath = scriptPathFrom(command, home, root)
+  const { scriptPath, state } = scriptPathFrom(command, home, root)
   return {
     kind,
     keyPath,
     command,
     scriptPath,
-    body: scriptPath ? readFileSafe(scriptPath) : null,
+    state,
+    body: state === 'ok' ? readFileSafe(scriptPath) : null,
   }
 }
 

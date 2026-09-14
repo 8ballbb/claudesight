@@ -144,12 +144,14 @@ export function buildProjectInventory(projectPath) {
     const r = readJsonSafe(path.join(dotClaude, name))
     if (r.state !== 'ok') continue
     for (const x of extractScripts(r.value, projectPath)) {
-      if (x.scriptPath) {
-        scripts.push({
-          path: x.scriptPath, label: path.basename(x.scriptPath),
-          keyPath: `${name}:${x.keyPath}`, command: x.command, artifactKind: x.kind,
-        })
-      }
+      // Every declared script, not only the ones that resolve. A hook whose
+      // file is missing is the case worth seeing: Claude Code still runs it.
+      if (x.state === 'not-declared') continue
+      scripts.push({
+        path: x.scriptPath, label: path.basename(x.scriptPath),
+        keyPath: `${name}:${x.keyPath}`, command: x.command, artifactKind: x.kind,
+        state: x.state, broken: x.state !== 'ok',
+      })
     }
   }
   add('scripts', scripts)
@@ -223,8 +225,11 @@ export function buildInventory(root) {
     : [])
 
   const scripts = s.result.state === 'ok' ? extractScripts(s.result.value, root) : []
-  add('scripts', scripts.filter((r) => r.scriptPath).map((r) => ({
-    path: r.scriptPath, label: path.basename(r.scriptPath), keyPath: r.keyPath, command: r.command, artifactKind: r.kind,
+  // Same rule as project scope, deliberately. Fixing one site and not the
+  // other would turn a uniform silence into a scope-dependent lie.
+  add('scripts', scripts.filter((r) => r.state !== 'not-declared').map((r) => ({
+    path: r.scriptPath, label: path.basename(r.scriptPath), keyPath: r.keyPath, command: r.command,
+    artifactKind: r.kind, state: r.state, broken: r.state !== 'ok',
   })))
 
   const sk = readSkills(root)
