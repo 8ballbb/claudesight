@@ -5,10 +5,13 @@ const MANAGED_DIRS = [
   '/etc/claude-code',
 ]
 
-// This filesystem is case-insensitive on darwin and win32, so a case-exact
-// string comparison fails open: /users/... and /Users/... are the same file.
-const CASE_INSENSITIVE = process.platform === 'darwin' || process.platform === 'win32'
-const fold = (p) => (CASE_INSENSITIVE ? p.normalize('NFC').toLowerCase() : p.normalize('NFC'))
+// macOS volumes are case-insensitive by default, so a case-exact comparison
+// fails open: /users/... and /Users/... are the same file, and one of them was
+// once classified freely-editable. Folding is also the right answer on a
+// case-SENSITIVE APFS volume, because it only ever makes MORE paths match the
+// protected prefixes — erring toward refusing a write, never toward allowing
+// one. It is therefore unconditional here rather than sniffed.
+const fold = (p) => p.normalize('NFC').toLowerCase()
 
 // Note: a plain startsWith(root) also matches "~/.claude.json" and
 // "~/.claude-atlas". Compare on path segments. Spec §9.4.

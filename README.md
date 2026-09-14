@@ -2,6 +2,10 @@
 
 See and edit every Claude Code artifact on your machine — globally and per project.
 
+**macOS only.** The parts that differ by platform — the Trash mechanism, filesystem case
+folding — have only ever run on macOS, so the app refuses to start elsewhere rather than
+half-working on files you rely on. Linux support is welcome; see `CONTRIBUTING.md`.
+
     git clone https://github.com/8ballbb/claude-atlas
     cd claude-atlas
     npm install        # also builds the UI
@@ -44,7 +48,9 @@ overwrites that directory wholesale, so the app blocks the save rather than lett
 lose the work later. Managed policy, marketplace checkouts, session transcripts and
 `~/.claude.json` are likewise read-only, each with the reason stated in the panel.
 
-Deletion moves the file to the Trash. Nothing is unlinked.
+Deletion moves the file to the Trash via `/usr/bin/trash`. If that is unavailable the
+deletion is refused — nothing here ever unlinks a file as a fallback, because the point of
+deleting through this app is that it stays recoverable outside it.
 
 ## Broken configuration, said out loud
 
@@ -88,11 +94,11 @@ size limit — it says so and why, and is never reported as "no change".
 ## Development
 
     npm install
-    npm test          # 287 tests
+    npm test          # 293 tests
     npm run lint
     npm run build     # required before the CLI can serve the UI
 
-Node 20 or later.
+Node 20 or later, on macOS.
 
 ## Design
 

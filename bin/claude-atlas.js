@@ -4,6 +4,17 @@ import { fileURLToPath } from 'node:url'
 import { createServer, DEFAULT_PORT } from '../src/server/index.js'
 import { resolveRoot } from '../src/server/roots.js'
 
+// macOS only, and said out loud rather than discovered as odd behaviour. The
+// paths that differ by platform — the Trash mechanism, filesystem case folding
+// — have only ever been exercised on darwin, and this app's whole discipline is
+// not asserting things it has not checked.
+if (process.platform !== 'darwin') {
+  console.error(`claude-atlas supports macOS only at the moment; this is ${process.platform}.`)
+  console.error('Nothing else has been tested, and it reads and writes files you rely on.')
+  console.error('Track or request other platforms: https://github.com/8ballbb/claude-atlas/issues')
+  process.exit(1)
+}
+
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = resolveRoot(process.env)
 

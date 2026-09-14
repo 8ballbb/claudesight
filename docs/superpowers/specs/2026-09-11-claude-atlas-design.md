@@ -1,7 +1,7 @@
 # claude-atlas — Design
 
 **Date:** 2026-09-11
-**Revision:** 5 (see §14)
+**Revision:** 6 (see §14)
 **Status:** In review
 **Author:** Andrew Poole (with Claude)
 
@@ -650,6 +650,14 @@ domain-accuracy, product). Material changes:
 17. **Cut**: multi-root switcher, three-way merge UI, backup GC, three-tier epistemology,
     `rare-kinds/` per-kind fixtures, golden-sample-per-version parser.
 18. **§5 stack decided** — Vite + React + CSS modules.
+
+**Revision 6 — 2026-09-14.** Scope narrowed to macOS. The platform-dependent paths — the
+Trash mechanism and filesystem case folding — had only ever executed on darwin, and the
+Linux XDG trash branch had never run outside the test suite. `bin/claude-atlas.js` now
+refuses to start elsewhere; the directory-move implementation survives as the `folder`
+mechanism, named for what it is. Case folding in `writability.js` is unconditional: it
+only ever makes more paths match a protected prefix, so it errs toward refusing a write
+on a case-sensitive volume too.
 
 **Revision 5 — 2026-09-14 (post-Phase-1, feature work).** Changes driven by four
 tournaments of competing agents and, in every case, by verifying their claims against a

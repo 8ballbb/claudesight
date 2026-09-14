@@ -6,26 +6,34 @@ import { execFileSync } from 'node:child_process'
 // Deleting must stay recoverable outside this app, so nothing here ever
 // unlinks a user-facing file as a fallback. If no trash mechanism is
 // available the deletion is refused instead.
+//
+// macOS only, deliberately. There was an XDG implementation here for Linux,
+// but it had never once run outside the test suite — `trashMechanism()` only
+// returned 'xdg' on linux, and the app has only ever run on darwin. Shipping
+// an untested code path as though it were supported is the kind of claim this
+// project exists not to make. It survives below as 'folder', named for what it
+// actually is: a move into a directory, used by tests so that deleting does
+// not litter the real Trash, and the obvious basis for Linux support later.
 
 const MACOS_TRASH = '/usr/bin/trash'
 
 export function trashMechanism(platform = process.platform) {
   if (platform === 'darwin' && fs.existsSync(MACOS_TRASH)) return 'macos-cli'
-  if (platform === 'linux') return 'xdg'
   return null
 }
 
-function xdgTrash(target, home) {
-  const base = process.env.XDG_DATA_HOME
-    ? path.join(process.env.XDG_DATA_HOME, 'Trash')
-    : path.join(home, '.local', 'share', 'Trash')
+// A move into <home>/.local/share/Trash, following the XDG layout so that a
+// future Linux implementation starts from something already exercised. Reached
+// only when a caller asks for it by name.
+function folderTrash(target, home) {
+  const base = path.join(home, '.local', 'share', 'Trash')
   const filesDir = path.join(base, 'files')
   const infoDir = path.join(base, 'info')
   fs.mkdirSync(filesDir, { recursive: true })
   fs.mkdirSync(infoDir, { recursive: true })
 
-  // The spec requires the info file to be created exclusively; the name it
-  // claims is the name the file must take.
+  // The info file is created exclusively; the name it claims is the name the
+  // file must take.
   const original = path.basename(target)
   let name = original
   let n = 1
@@ -72,7 +80,7 @@ export function moveToTrash(target, home = os.homedir(), forceMechanism = null) 
   const mechanism = forceMechanism ?? trashMechanism()
   // Anything unrecognised counts as unavailable. Falling through to a
   // best-effort branch is how a "safe delete" quietly becomes a real one.
-  if (mechanism !== 'macos-cli' && mechanism !== 'xdg') {
+  if (mechanism !== 'macos-cli' && mechanism !== 'folder') {
     return {
       ok: false,
       error: 'no-trash',
@@ -90,7 +98,7 @@ export function moveToTrash(target, home = os.homedir(), forceMechanism = null) 
       }
       return { ok: true, mechanism }
     }
-    xdgTrash(target, home)
+    folderTrash(target, home)
     return { ok: true, mechanism }
   } catch (err) {
     return { ok: false, error: 'trash-failed', reason: err.message ?? String(err) }

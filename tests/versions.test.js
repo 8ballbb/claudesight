@@ -112,7 +112,7 @@ describe('readVersion', () => {
 describe('deleteVersion', () => {
   it('removes both the snapshot and its sidecar', () => {
     const r = createVersion(target, null, home)
-    expect(deleteVersion(target, r.version.id, home, 'xdg')).toMatchObject({ ok: true })
+    expect(deleteVersion(target, r.version.id, home, 'folder')).toMatchObject({ ok: true })
     expect(listVersions(target, home)).toEqual([])
     expect(readVersion(target, r.version.id, home)).toBeNull()
   })
@@ -121,22 +121,22 @@ describe('deleteVersion', () => {
     const r = createVersion(target, null, home)
     const dirs = () => fs.readdirSync(storeRoot(home)).filter((d) => d !== 'index.json')
     expect(dirs()).toHaveLength(1)
-    deleteVersion(target, r.version.id, home, 'xdg')
+    deleteVersion(target, r.version.id, home, 'folder')
     expect(dirs()).toHaveLength(0)
   })
 
   it('reports an unknown version rather than silently succeeding', () => {
-    expect(deleteVersion(target, 'nope', home, 'xdg')).toEqual({ ok: false, error: 'unknown-version' })
+    expect(deleteVersion(target, 'nope', home, 'folder')).toEqual({ ok: false, error: 'unknown-version' })
   })
 
   it('refuses an id containing path separators', () => {
-    expect(deleteVersion(target, '../../x', home, 'xdg')).toEqual({ ok: false, error: 'bad-id' })
+    expect(deleteVersion(target, '../../x', home, 'folder')).toEqual({ ok: false, error: 'bad-id' })
   })
 
   it('leaves sibling versions untouched', () => {
     createVersion(target, 'keep', home)
     const drop = createVersion(target, 'drop', home)
-    deleteVersion(target, drop.version.id, home, 'xdg')
+    deleteVersion(target, drop.version.id, home, 'folder')
     expect(listVersions(target, home).map((v) => v.label)).toEqual(['keep'])
   })
 })
@@ -171,7 +171,7 @@ describe('deletion goes to the trash, not oblivion', () => {
   it('puts a recoverable copy in the trash', () => {
     fs.writeFileSync(target, 'the content I will want back\n')
     const r = createVersion(target, 'precious', home)
-    deleteVersion(target, r.version.id, home, 'xdg')
+    deleteVersion(target, r.version.id, home, 'folder')
 
     const boxes = fs.readdirSync(trashFiles())
     expect(boxes).toHaveLength(1)
@@ -184,7 +184,7 @@ describe('deletion goes to the trash, not oblivion', () => {
 
   it('records where it came from, so it can be put back by hand', () => {
     const r = createVersion(target, 'labelled', home)
-    deleteVersion(target, r.version.id, home, 'xdg')
+    deleteVersion(target, r.version.id, home, 'folder')
     const box = fs.readdirSync(trashFiles())[0]
     const meta = JSON.parse(fs.readFileSync(path.join(trashFiles(), box, 'metadata.json'), 'utf8'))
     expect(meta.restoreTo).toBe(target)
@@ -194,7 +194,7 @@ describe('deletion goes to the trash, not oblivion', () => {
 
   it('writes a trashinfo naming the original path', () => {
     const r = createVersion(target, null, home)
-    deleteVersion(target, r.version.id, home, 'xdg')
+    deleteVersion(target, r.version.id, home, 'folder')
     const info = fs.readdirSync(trashInfo())[0]
     const body = fs.readFileSync(path.join(trashInfo(), info), 'utf8')
     expect(body).toContain('[Trash Info]')
@@ -213,7 +213,7 @@ describe('deletion goes to the trash, not oblivion', () => {
 
   it('leaves no staging directory behind', () => {
     const r = createVersion(target, null, home)
-    deleteVersion(target, r.version.id, home, 'xdg')
+    deleteVersion(target, r.version.id, home, 'folder')
     const staging = path.join(home, '.claude-atlas', '.trashing')
     expect(fs.existsSync(staging) ? fs.readdirSync(staging) : []).toEqual([])
   })
