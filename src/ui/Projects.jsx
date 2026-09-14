@@ -9,11 +9,10 @@ const MARKER_LABEL = {
   skills: 'skills', claudeDir: '.claude', pluginSource: 'plugin source', git: 'git',
 }
 
-export default function Projects({ post }) {
+export default function Projects({ post, guard }) {
   const [found, setFound] = useState(null)
   const [selected, setSelected] = useState(null)
   const [inv, setInv] = useState(null)
-  const [open, setOpen] = useState(null)
   const [adding, setAdding] = useState('')
   const [addError, setAddError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -33,7 +32,7 @@ export default function Projects({ post }) {
 
   const pick = async (project) => {
     setSelected(project)
-    setOpen(null)
+    guard.request(null)
     setInv(null)
     const r = await post('/api/project-inventory', { path: project.path })
     setInv(r.error ? null : r)
@@ -54,7 +53,7 @@ export default function Projects({ post }) {
   if (!found) return <p className={s.loading}>Looking for projects Claude has run in…</p>
 
   return (
-    <div className={`${s.body} ${open ? s.split : ''}`}>
+    <div className={`${s.body} ${guard.open ? s.split : ''}`}>
       <div>
         <section className={s.group}>
           <div className={s.groupHead}>
@@ -122,17 +121,18 @@ export default function Projects({ post }) {
             <p className={s.path}>{selected.path}</p>
             {!inv && <p className={s.loading}>Reading…</p>}
             {inv && <Notices inv={inv} />}
-            {inv && <Inventory inv={inv} openId={open?.id} onOpen={setOpen} scope="project" />}
+            {inv && <Inventory inv={inv} openId={guard.open?.id} onOpen={guard.request} scope="project" />}
           </section>
         )}
       </div>
 
-      {open && (
+      {guard.open && (
         <Editor
-          key={open.id}
-          item={open}
+          key={guard.open.id}
+          item={guard.open}
           post={post}
-          onClose={() => setOpen(null)}
+          onClose={() => guard.request(null)}
+          onDirtyChange={guard.onDirtyChange}
           onSaved={() => selected && pick(selected)}
         />
       )}

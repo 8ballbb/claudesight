@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import Editor from './Editor.jsx'
 import Inventory, { Notices } from './Inventory.jsx'
 import Projects from './Projects.jsx'
+import { useCloseGuard, CloseGuard } from './closeGuard.jsx'
 import s from './app.module.css'
 
 export const post = (url, body) =>
@@ -101,18 +102,18 @@ function NewSkill({ onCreated }) {
   )
 }
 
-function GlobalView({ inv, reload, open, setOpen }) {
+function GlobalView({ inv, reload, guard }) {
   const [created, setCreated] = useState(null)
 
   const afterCreate = async (r) => {
     const fresh = await reload()
     const item = fresh?.groups.flatMap((g) => g.items).find((i) => i.id === r.id)
-    if (item) setOpen(item)
+    if (item) guard.request(item)
     setCreated(r.warning ?? 'Created. Its first version is saved as "created".')
   }
 
   return (
-    <div className={`${s.body} ${open ? s.split : ''}`}>
+    <div className={`${s.body} ${guard.open ? s.split : ''}`}>
       <div>
         <Notices inv={inv} />
         {created && (
@@ -123,17 +124,18 @@ function GlobalView({ inv, reload, open, setOpen }) {
         )}
         <Inventory
           inv={inv}
-          openId={open?.id}
-          onOpen={setOpen}
+          openId={guard.open?.id}
+          onOpen={guard.request}
           extras={{ skill: <NewSkill onCreated={afterCreate} /> }}
         />
       </div>
-      {open && (
+      {guard.open && (
         <Editor
-          key={open.id}
-          item={open}
+          key={guard.open.id}
+          item={guard.open}
           post={post}
-          onClose={() => setOpen(null)}
+          onClose={() => guard.request(null)}
+          onDirtyChange={guard.onDirtyChange}
           onSaved={reload}
         />
       )}
@@ -144,8 +146,8 @@ function GlobalView({ inv, reload, open, setOpen }) {
 export default function App() {
   const [page, setPage] = useState('global')
   const [inv, setInv] = useState(null)
-  const [open, setOpen] = useState(null)
   const [failed, setFailed] = useState(null)
+  const guard = useCloseGuard()
 
   const reload = useCallback(async () => {
     try {
@@ -162,12 +164,6 @@ export default function App() {
 
   useEffect(() => { reload() }, [reload])
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(null) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
   if (failed) return <p className={s.loading}>Could not load inventory: {failed}</p>
   if (!inv) return <p className={s.loading}>Reading configuration…</p>
 
@@ -182,13 +178,13 @@ export default function App() {
         <nav className={s.nav}>
           <button
             className={`${s.navTab} ${page === 'global' ? s.navOn : ''}`}
-            onClick={() => { setPage('global'); setOpen(null) }}
+            onClick={() => guard.request(null, () => setPage('global'))}
           >
             global
           </button>
           <button
             className={`${s.navTab} ${page === 'projects' ? s.navOn : ''}`}
-            onClick={() => { setPage('projects'); setOpen(null) }}
+            onClick={() => guard.request(null, () => setPage('projects'))}
           >
             projects
           </button>
@@ -201,8 +197,10 @@ export default function App() {
       </header>
 
       {page === 'global'
-        ? <GlobalView inv={inv} reload={reload} open={open} setOpen={setOpen} />
-        : <Projects post={post} />}
+        ? <GlobalView inv={inv} reload={reload} guard={guard} />
+        : <Projects post={post} guard={guard} />}
+
+      <CloseGuard pending={guard.pending} onKeep={guard.keepEditing} onDiscard={guard.discard} />
     </main>
   )
 }

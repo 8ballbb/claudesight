@@ -86,7 +86,7 @@ const when = (iso) => {
   try { return new Date(iso).toLocaleString() } catch { return iso }
 }
 
-export default function Editor({ item, post, onClose, onSaved }) {
+export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) {
   const [doc, setDoc] = useState(null)
   const [readErr, setReadErr] = useState(null)
   const [text, setText] = useState('')
@@ -190,6 +190,11 @@ export default function Editor({ item, post, onClose, onSaved }) {
     ? 'missing-declared'
     : readErr?.error
   const dirty = doc && text !== doc.content
+
+  // The guard lives above this component because it has to survive this
+  // component being unmounted. Report upward; do not decide here.
+  useEffect(() => { onDirtyChange?.(Boolean(dirty)) }, [dirty, onDirtyChange])
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange])
 
   return (
     <aside className={s.detail}>

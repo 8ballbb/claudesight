@@ -82,6 +82,11 @@ the previous palette, a project panel drawn below the fold so clicking appeared 
 "session files carry a tail summary" (1 in 20 do) and "therefore we need an index" (a full
 113 MB parse takes 0.75s).
 
+**A free identifier can be a browser global.** Deleting local `open` state left
+``${open ? s.split : ''}`` resolving to `window.open` — always truthy, no lint error, no
+build error, no console error. The layout was simply wrong forever. When you remove a
+variable, grep for its bare name, not just its declaration.
+
 **Build before serving.** `bin/claude-atlas.js` serves `dist/`. Source edits are invisible
 until `npm run build`.
 
