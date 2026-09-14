@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # macOS only, matching the app: bin/claude-atlas.js refuses to start
+    # anywhere else, and the platform-dependent paths — the Trash mechanism,
+    # filesystem case folding — have never run on another platform. Adding a
+    # platform means adding its runner here in the same change.
+    runs-on: macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor declared in package.json engines, and current.
+        node: ['20', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # `npm ci` runs `prepare`, which builds the UI — so this also proves a
+      # fresh clone produces a servable app, not just a passing suite.
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      - name: The built UI must exist after a clean install
+        run: test -f dist/index.html && test -n "$(ls dist/assets/*.js)"
+
+      - name: The server starts and answers on its fixed port
+        run: |
+          node bin/claude-atlas.js &
+          for i in $(seq 1 20); do
+            sleep 0.5
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7717/ || true)
+            [ "$code" = "200" ] && break
+          done
+          test "$code" = "200" || { echo "server never answered (last code: $code)"; exit 1; }
+
+      - name: A page on another site cannot drive the API
+        run: |
+          origin=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Origin: https://evil.example' http://127.0.0.1:7717/api/inventory)
+          form=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Origin: http://127.0.0.1:7717' -H 'content-type: text/plain' \
+            -d '{}' http://127.0.0.1:7717/api/write)
+          host=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'Host: evil.example' http://127.0.0.1:7717/api/inventory)
+          echo "cross-origin=$origin form-shaped=$form rebinding=$host"
+          test "$origin" = "403" && test "$form" = "415" && test "$host" = "403"
+
+  audit:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # Runtime dependencies are react, react-dom and yaml. A moderate advisory
+      # in build tooling should not block a pull request, but a high one in
+      # anything should be looked at.
+      - run: npm audit --audit-level=high

@@ -10,7 +10,7 @@ import { readJsonSafe } from './fsread.js'
 // trust decision that would register it.
 //
 // Deliberately NOT a source: the directory names under projects/. They mangle
-// separators to dashes, so `payments-api` and `enterprise-memory` collapse
+// separators to dashes, so `payments_api` and `payments-api` collapse
 // to the same string — 6 of 13 were unrecoverable on this machine.
 
 const under = (child, parent) => {

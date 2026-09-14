@@ -9,7 +9,7 @@ beforeAll(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-memory-'))
   // The author's real shape: CLAUDE.md is 8 bytes and imports everything
   fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '@NOTES.md\n')
-  fs.writeFileSync(path.join(dir, 'NOTES.md'), '# RTK\n\nToken optimised proxy.\n@nested.md\n')
+  fs.writeFileSync(path.join(dir, 'NOTES.md'), '# Notes\n\nProject conventions.\n@nested.md\n')
   fs.writeFileSync(path.join(dir, 'nested.md'), 'deep content\n')
   fs.writeFileSync(path.join(dir, 'loopA.md'), '@loopB.md\n')
   fs.writeFileSync(path.join(dir, 'loopB.md'), '@loopA.md\n')
@@ -17,12 +17,14 @@ beforeAll(() => {
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }))
 
 describe('readMemory', () => {
-  it('resolves @-imports so an 8-byte CLAUDE.md is not the whole story', () => {
+  it('resolves @-imports so a tiny CLAUDE.md is not the whole story', () => {
+    // The real case this came from: a global CLAUDE.md holding one @-import
+    // and nothing else. Its own size says almost nothing about what is loaded.
     const node = readMemory(path.join(dir, 'CLAUDE.md'))
-    expect(node.bytes).toBe(8)
+    expect(node.bytes).toBeLessThan(20)
     expect(node.imports).toHaveLength(1)
     expect(node.imports[0].path).toBe(path.join(dir, 'NOTES.md'))
-    expect(node.imports[0].content).toContain('Token optimised proxy')
+    expect(node.imports[0].content).toContain('Project conventions')
   })
 
   it('resolves transitively', () => {

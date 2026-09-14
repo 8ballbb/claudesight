@@ -8,7 +8,7 @@ let root, handle, base
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-api-'))
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
-  fs.writeFileSync(path.join(root, 'NOTES.md'), '# RTK\n')
+  fs.writeFileSync(path.join(root, 'NOTES.md'), '# Notes\n')
   fs.writeFileSync(path.join(root, 'settings.json'), '{"model":"claude-opus-5"}')
   const agentDir = path.join(root, 'plugins/cache/mp/spyglass/0.1.0/agents')
   fs.mkdirSync(agentDir, { recursive: true })
@@ -100,13 +100,13 @@ describe('api', () => {
     const inv = await (await call('/api/inventory')).json()
     const item = inv.groups.flatMap((g) => g.items).find((i) => i.path.endsWith('NOTES.md'))
     const read = await (await call('/api/read', { method: 'POST', body: JSON.stringify({ id: item.id }) })).json()
-    expect(read.content).toContain('# RTK')
+    expect(read.content).toContain('# Notes')
     const w = await call('/api/write', {
       method: 'POST',
-      body: JSON.stringify({ id: item.id, content: '# RTK v2\n', etag: read.etag }),
+      body: JSON.stringify({ id: item.id, content: '# Notes v2\n', etag: read.etag }),
     })
     expect((await w.json()).ok).toBe(true)
-    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# RTK v2\n')
+    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# Notes v2\n')
   })
 
   it('returns 404 for an unknown id rather than touching the filesystem', async () => {

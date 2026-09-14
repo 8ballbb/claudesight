@@ -674,7 +674,7 @@ beforeAll(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-memory-'))
   // The author's real shape: CLAUDE.md is 8 bytes and imports everything
   fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '@NOTES.md\n')
-  fs.writeFileSync(path.join(dir, 'NOTES.md'), '# RTK\n\nToken optimised proxy.\n@nested.md\n')
+  fs.writeFileSync(path.join(dir, 'NOTES.md'), '# Notes\n\nProject conventions.\n@nested.md\n')
   fs.writeFileSync(path.join(dir, 'nested.md'), 'deep content\n')
   fs.writeFileSync(path.join(dir, 'loopA.md'), '@loopB.md\n')
   fs.writeFileSync(path.join(dir, 'loopB.md'), '@loopA.md\n')
@@ -1943,7 +1943,7 @@ let root, handle, base, cookie
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-api-'))
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
-  fs.writeFileSync(path.join(root, 'NOTES.md'), '# RTK\n')
+  fs.writeFileSync(path.join(root, 'NOTES.md'), '# Notes\n')
   fs.writeFileSync(path.join(root, 'settings.json'), '{"model":"claude-opus-5"}')
   handle = await createServer({ root, distDir: null })
   base = handle.url.split('?')[0].replace(/\/$/, '')
@@ -1983,13 +1983,13 @@ describe('api', () => {
     const inv = await (await call('/api/inventory')).json()
     const item = inv.groups.flatMap((g) => g.items).find((i) => i.path.endsWith('NOTES.md'))
     const read = await (await call('/api/read', { method: 'POST', body: JSON.stringify({ id: item.id }) })).json()
-    expect(read.content).toContain('# RTK')
+    expect(read.content).toContain('# Notes')
     const w = await call('/api/write', {
       method: 'POST',
-      body: JSON.stringify({ id: item.id, content: '# RTK v2\n', etag: read.etag }),
+      body: JSON.stringify({ id: item.id, content: '# Notes v2\n', etag: read.etag }),
     })
     expect((await w.json()).ok).toBe(true)
-    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# RTK v2\n')
+    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# Notes v2\n')
   })
 
   it('returns 404 for an unknown id rather than touching the filesystem', async () => {
@@ -2517,7 +2517,7 @@ let root, handle, base, cookie
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-e2e-'))
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
-  fs.writeFileSync(path.join(root, 'NOTES.md'), '# RTK\n\nToken killer.\n')
+  fs.writeFileSync(path.join(root, 'NOTES.md'), '# Notes\n\nProject conventions.\n')
   fs.mkdirSync(path.join(root, 'hooks'))
   fs.writeFileSync(path.join(root, 'hooks/format-hook.sh'), '#!/bin/bash\necho hi\n')
   fs.writeFileSync(path.join(root, 'settings.json'), JSON.stringify({
@@ -2553,13 +2553,13 @@ describe('phase 1 exit criteria', () => {
 
   it('edits NOTES.md in place and leaves a backup', async () => {
     const inv = await (await call('/api/inventory')).json()
-    const rtk = inv.groups.flatMap((g) => g.items).find((i) => i.path.endsWith('NOTES.md'))
-    const read = await (await call('/api/read', { method: 'POST', body: JSON.stringify({ id: rtk.id }) })).json()
+    const notes = inv.groups.flatMap((g) => g.items).find((i) => i.path.endsWith('NOTES.md'))
+    const read = await (await call('/api/read', { method: 'POST', body: JSON.stringify({ id: notes.id }) })).json()
     const w = await (await call('/api/write', {
-      method: 'POST', body: JSON.stringify({ id: rtk.id, content: '# RTK edited\n', etag: read.etag }),
+      method: 'POST', body: JSON.stringify({ id: notes.id, content: '# Notes edited\n', etag: read.etag }),
     })).json()
     expect(w.ok).toBe(true)
-    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# RTK edited\n')
+    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# Notes edited\n')
     expect(fs.existsSync(w.backup)).toBe(true)
   })
 

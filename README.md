@@ -106,6 +106,8 @@ Node 20 or later, on macOS.
 
 > Screenshots use a fabricated configuration, not a real one.
 
+[![CI](https://github.com/8ballbb/claude-atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/8ballbb/claude-atlas/actions/workflows/ci.yml)
+
 ## Contributing
 
 `CONTRIBUTING.md` for how to run it and what the codebase expects. `SECURITY.md` for the

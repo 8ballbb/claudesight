@@ -214,7 +214,7 @@ the ground truth.
 
 | Status | Definition | Example |
 |---|---|---|
-| **Configured** | has `.claude/` with real config | `Desktop/projects/payments-api` |
+| **Configured** | has `.claude/` with real config | `code/payments-api` |
 | **Active** | has sessions, no local config | `Desktop/projects/spyglass` |
 | **Orphaned** | config on disk, unknown to Claude Code | `vault/.claude` |
 | **Stale** | registered, directory gone | on scan |

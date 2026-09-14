@@ -9,7 +9,7 @@ let root, handle, base
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-e2e-'))
   fs.writeFileSync(path.join(root, 'CLAUDE.md'), '@NOTES.md\n')
-  fs.writeFileSync(path.join(root, 'NOTES.md'), '# RTK\n\nToken killer.\n')
+  fs.writeFileSync(path.join(root, 'NOTES.md'), '# Notes\n\nProject conventions.\n')
   fs.mkdirSync(path.join(root, 'hooks'))
   fs.writeFileSync(path.join(root, 'hooks/format-hook.sh'), '#!/bin/bash\necho hi\n')
   fs.writeFileSync(path.join(root, 'settings.json'), JSON.stringify({
@@ -44,13 +44,13 @@ describe('phase 1 exit criteria', () => {
 
   it('edits NOTES.md in place and leaves a backup', async () => {
     const inv = await (await call('/api/inventory')).json()
-    const rtk = inv.groups.flatMap((g) => g.items).find((i) => i.path.endsWith('NOTES.md'))
-    const read = await (await call('/api/read', { method: 'POST', body: JSON.stringify({ id: rtk.id }) })).json()
+    const notes = inv.groups.flatMap((g) => g.items).find((i) => i.path.endsWith('NOTES.md'))
+    const read = await (await call('/api/read', { method: 'POST', body: JSON.stringify({ id: notes.id }) })).json()
     const w = await (await call('/api/write', {
-      method: 'POST', body: JSON.stringify({ id: rtk.id, content: '# RTK edited\n', etag: read.etag }),
+      method: 'POST', body: JSON.stringify({ id: notes.id, content: '# Notes edited\n', etag: read.etag }),
     })).json()
     expect(w.ok).toBe(true)
-    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# RTK edited\n')
+    expect(fs.readFileSync(path.join(root, 'NOTES.md'), 'utf8')).toBe('# Notes edited\n')
     expect(fs.existsSync(w.backup)).toBe(true)
   })
 

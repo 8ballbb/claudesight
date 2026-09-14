@@ -47,6 +47,16 @@ If you add Linux or Windows: start from the `folder` mechanism in `src/server/tr
 relax the guard in `bin/claude-atlas.js`, **and add CI that runs the suite on that platform
 in the same change.** A platform without CI is a claim nobody has checked.
 
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request: lint, the suite on Node 20
+and 22, and then three checks the suite cannot make. That a clean `npm ci` produces a
+servable `dist/`, that the server actually answers on its fixed port, and that a
+cross-origin read, a form-shaped write and a rebinding attempt are refused — 403, 415, 403.
+
+macOS runners only, matching the app. Adding a platform means adding its runner in the
+same change.
+
 ## Pull requests
 
 Small and self-contained beats comprehensive. Say what you changed and why; if you found a
