@@ -1,6 +1,28 @@
 {
   "name": "claude-atlas",
   "version": "0.1.0",
+  "description": "See and edit every Claude Code artifact on your machine \u2014 global and per project. macOS, local only.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "skills",
+    "agents",
+    "plugins",
+    "mcp",
+    "config",
+    "dotfiles",
+    "cli"
+  ],
+  "homepage": "https://github.com/8ballbb/claude-atlas#readme",
+  "bugs": {
+    "url": "https://github.com/8ballbb/claude-atlas/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/8ballbb/claude-atlas.git"
+  },
+  "author": "Andrew Poole",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -33,5 +55,8 @@
     "eslint": "^8.57.0",
     "vite": "^8.3.0",
     "vitest": "^5.0.0"
-  }
+  },
+  "os": [
+    "darwin"
+  ]
 }

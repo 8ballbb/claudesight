@@ -25,6 +25,8 @@ Or without cloning:
 > **Not** `npx claude-atlas` — that name on npm belongs to an unrelated project
 > (`bernabranco/claude-atlas`). This one is not published to npm.
 
+![The global view: artifacts grouped by kind, banded by owner, everything folded until you open it](docs/img/global.jpg)
+
 ## What it shows
 
 **Global** — your memory files with `@`-imports resolved, `settings.json`, the hook and
@@ -40,6 +42,8 @@ layout too, since its artifacts live at the repo root rather than under `.claude
 
 Items are grouped by kind and banded by owner, because ownership is what decides whether
 you can change a thing. Everything starts folded; what you expand is remembered.
+
+![The projects view: the discovered project list beside the selected project's artifacts](docs/img/projects.jpg)
 
 ## What it refuses to do
 
@@ -99,6 +103,11 @@ size limit — it says so and why, and is never reported as "no change".
     npm run build     # required before the CLI can serve the UI
 
 Node 20 or later, on macOS.
+
+## Contributing
+
+`CONTRIBUTING.md` for how to run it and what the codebase expects. `SECURITY.md` for the
+threat model and how to report a vulnerability privately.
 
 ## Design
 
