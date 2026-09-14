@@ -88,7 +88,7 @@ size limit — it says so and why, and is never reported as "no change".
 ## Development
 
     npm install
-    npm test          # 275 tests
+    npm test          # 287 tests
     npm run lint
     npm run build     # required before the CLI can serve the UI
 
