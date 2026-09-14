@@ -3,6 +3,12 @@ import Inventory, { Notices } from './Inventory.jsx'
 import Editor from './Editor.jsx'
 import s from './app.module.css'
 
+const LAST_PROJECT = 'atlas.lastProject'
+
+// Below this the two panes stack, because a 320px list beside a 320px
+// inventory is worse than either one full width.
+const STACK_AT = 900
+
 const MARKER_ORDER = ['memory', 'settings', 'mcp', 'skills', 'claudeDir', 'pluginSource', 'git']
 const MARKER_LABEL = {
   memory: 'CLAUDE.md', settings: 'settings', mcp: '.mcp.json',
@@ -18,10 +24,15 @@ export default function Projects({ post, guard }) {
   const [busy, setBusy] = useState(false)
   const detail = useRef(null)
 
-  // The picked project renders BELOW a list that can be a screen tall, so the
-  // click had no visible effect and read as "this project shows nothing".
+  // Side by side, the picked project is simply visible — no scrolling needed
+  // and the list keeps its place. Below the stacking breakpoint the old
+  // layout returns, and so does the scroll that made it usable.
+  const stacked = () => {
+    try { return window.matchMedia(`(max-width: ${STACK_AT}px)`).matches } catch { return false }
+  }
+
   useEffect(() => {
-    if (selected && detail.current) {
+    if (selected && stacked() && detail.current) {
       detail.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [selected])
@@ -34,10 +45,27 @@ export default function Projects({ post, guard }) {
     setSelected(project)
     guard.request(null)
     setInv(null)
+    // Remembered like fold state is, so returning to this page returns you to
+    // what you were looking at rather than to nothing.
+    try { window.localStorage.setItem(LAST_PROJECT, project.path) } catch { /* non-fatal */ }
     const r = await post('/api/project-inventory', { path: project.path })
     setInv(r.error ? null : r)
     if (r.error) setAddError(r.reason ?? r.error)
   }
+
+  // Restore the last project, but only once and only if it is still discovered
+  // and still on disk — a remembered path that has since gone must not
+  // resurrect as a selection the page cannot fill.
+  const restored = useRef(false)
+  useEffect(() => {
+    if (!found || restored.current) return
+    restored.current = true
+    let last = null
+    try { last = window.localStorage.getItem(LAST_PROJECT) } catch { /* storage blocked */ }
+    if (!last) return
+    const match = found.projects.find((p) => p.path === last && p.exists)
+    if (match) pick(match)
+  }, [found]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addDirectory = async (e) => {
     e.preventDefault()
@@ -54,8 +82,8 @@ export default function Projects({ post, guard }) {
 
   return (
     <div className={`${s.body} ${guard.open ? s.split : ''}`}>
-      <div>
-        <section className={s.group}>
+      <div className={s.projectsSplit}>
+        <section className={`${s.group} ${s.projectList}`}>
           <div className={s.groupHead}>
             <h2 className={s.groupName}>projects</h2>
             <span className={s.groupCount}>{found.projects.length}</span>
@@ -72,15 +100,24 @@ export default function Projects({ post, guard }) {
             {found.projects.map((p) => (
               <li key={p.path} className={`${s.row} ${selected?.path === p.path ? s.active : ''}`}>
                 <span className={s.index}>{p.sessions || '·'}</span>
-                <button className={s.rowName} onClick={() => pick(p)} disabled={!p.exists}>
+                <button
+                  className={s.rowName}
+                  onClick={() => pick(p)}
+                  disabled={!p.exists}
+                  title={p.path}
+                >
                   {p.path.split('/').slice(-2).join('/')}
                 </button>
-                <span className={s.rowMeta}>{p.path}</span>
+                <span className={s.rowMeta} title={p.path}>{p.path}</span>
                 <span className={s.rowTail}>
                   {!p.exists && <span className={`${s.chip} ${s.alarm}`}>gone</span>}
                   {p.exists && !p.configured && <span className={`${s.chip} ${s.locked}`}>no config</span>}
                   {p.markers && MARKER_ORDER.filter((m) => p.markers[m]).map((m) => (
-                    <span key={m} className={`${s.chip} ${m === 'git' ? s.locked : s.free}`}>
+                    <span
+                      key={m}
+                      className={`${s.chip} ${m === 'git' ? s.locked : s.free}`}
+                      title={`${MARKER_LABEL[m]} found in this project`}
+                    >
                       {MARKER_LABEL[m]}
                     </span>
                   ))}
@@ -105,7 +142,7 @@ export default function Projects({ post, guard }) {
         </section>
 
         {selected && (
-          <section className={s.group} ref={detail}>
+          <section className={`${s.group} ${s.projectDetail}`} ref={detail}>
             <div className={s.groupHead}>
               <h2 className={s.groupName}>{selected.path.split('/').pop()}</h2>
               <span className={s.groupRule} />
@@ -122,6 +159,11 @@ export default function Projects({ post, guard }) {
             {!inv && <p className={s.loading}>Reading…</p>}
             {inv && <Notices inv={inv} />}
             {inv && <Inventory inv={inv} openId={guard.open?.id} onOpen={guard.request} scope="project" />}
+          </section>
+        )}
+        {!selected && (
+          <section className={`${s.group} ${s.projectDetail}`}>
+            <p className={s.hint}>Pick a project to see what is configured in it.</p>
           </section>
         )}
       </div>

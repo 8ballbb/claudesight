@@ -64,3 +64,45 @@ describe('unsaved-edit guard: no unguarded exit remains', () => {
     expect(src.indexOf('Keep editing')).toBeLessThan(src.indexOf('Discard and close'))
   })
 })
+
+describe('projects page: list beside detail, and it remembers', () => {
+  const jsx = read('Projects.jsx')
+  const css = fs.readFileSync('src/ui/app.module.css', 'utf8')
+
+  it('lays the list beside the detail instead of stacking them', () => {
+    expect(jsx).toContain('s.projectsSplit')
+    expect(css).toContain('.projectsSplit')
+    expect(css).toMatch(/\.projectsSplit\s*{[^}]*grid-template-columns/)
+  })
+
+  it('keeps the stacked layout and its scroll below the breakpoint', () => {
+    // The scrollIntoView treated the symptom of the stacked layout. It is still
+    // needed there, and only there.
+    expect(jsx).toContain('stacked() && detail.current')
+    expect(css).toContain('@media (max-width: 900px)')
+  })
+
+  it('remembers the last project, the way fold state is remembered', () => {
+    expect(jsx).toContain("const LAST_PROJECT = 'atlas.lastProject'")
+    expect(jsx).toContain('window.localStorage.setItem(LAST_PROJECT, project.path)')
+  })
+
+  it('restores only a project that is still discovered and still on disk', () => {
+    // A remembered path that has since gone must not come back as a selection
+    // the page cannot fill.
+    expect(jsx).toMatch(/found\.projects\.find\(\(p\) => p\.path === last && p\.exists\)/)
+  })
+
+  it('restores at most once, so it cannot fight a later choice', () => {
+    expect(jsx).toContain('if (!found || restored.current) return')
+  })
+
+  it('says why the detail pane is empty rather than showing a blank column', () => {
+    expect(jsx).toContain('Pick a project to see what is configured in it.')
+  })
+
+  it('keeps a project row on one line — the full path lives on a title', () => {
+    expect(css).toContain('.projectList .rowTail { flex-wrap: nowrap')
+    expect(jsx).toContain('title={p.path}')
+  })
+})

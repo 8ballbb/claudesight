@@ -789,3 +789,44 @@
 
 /* A path has no spaces to break on, so without this it forces the page wide. */
 .noticePaths li { overflow-wrap: anywhere; }
+
+/* ── projects: list beside detail ─────────────────────────────────────── */
+
+.projectsSplit {
+  display: grid;
+  /* The list needs real width: a project row carries a session count, a name
+     and up to four marker chips, and starving it wraps the chips into ragged
+     two- and three-line rows that destroy the scan. The detail pane opens
+     folded, so it needs less than it looks. */
+  grid-template-columns: minmax(430px, 1fr) 1fr;
+  gap: 30px;
+  align-items: start;
+  min-width: 0;
+}
+
+/* Both panes must be allowed to shrink, or a long path forces the grid wide
+   and the page scrolls sideways. */
+.projectList, .projectDetail { min-width: 0; margin-top: 0; }
+
+/* The list is its own scroll region so a long project list cannot push the
+   detail pane off the bottom of the page. */
+.projectList .rows {
+  max-height: calc(100vh - 290px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* In the narrow pane the path competes with the name for room; the name and
+   the chips carry the identity, and the full path is on the title attribute. */
+.projectList .rowMeta { display: none; }
+/* One line per project, always. If a project ever carries more chips than fit,
+   they clip rather than reflow — the row stays scannable and the detail pane
+   below shows everything anyway. */
+.projectList .rowTail { flex-wrap: nowrap; overflow: hidden; }
+
+@media (max-width: 900px) {
+  .projectsSplit { grid-template-columns: 1fr; gap: 0; }
+  .projectList .rows { max-height: none; overflow-y: visible; }
+  .projectList .rowMeta { display: block; }
+  .projectDetail { margin-top: 34px; }
+}
