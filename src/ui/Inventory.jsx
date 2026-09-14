@@ -231,17 +231,24 @@ export function Notices({ inv }) {
     .filter((r) => r.state !== 'ok')
     .map((r) => ({ tag: r.label, text: SOURCE_NOTE[r.state]?.(r.dir) ?? `${r.dir}: ${r.state}` }))
 
+  // The server already knows WHICH directories it could not read. Reducing
+  // that to a count left the one question you actually have unanswered: which
+  // path do I need unlocked? That matters most on a managed machine, where
+  // the answer is something you have to ask an administrator for.
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
   if (inv.denied?.length) {
     notes.push({
       tag: 'unreadable',
-      text: `${inv.denied.length} directories could not be read (permission denied)`,
+      text: `${plural(inv.denied.length, 'directory', 'directories')} could not be read — anything inside is missing from this page`,
+      paths: inv.denied,
       attn: true,
     })
   }
   if (inv.errors?.length) {
     notes.push({
       tag: 'errors',
-      text: `${inv.errors.length} directories failed unexpectedly — some artifacts may be missing`,
+      text: `${plural(inv.errors.length, 'directory', 'directories')} failed unexpectedly — some artifacts may be missing`,
+      paths: inv.errors.map((e) => (e.errno ? `${e.path}  (${e.errno})` : String(e.path ?? e))),
       attn: true,
     })
   }
@@ -249,13 +256,39 @@ export function Notices({ inv }) {
 
   return (
     <ul className={s.notices}>
-      {notes.map((n) => (
-        <li key={n.tag + n.text} className={`${s.notice} ${n.attn ? s.attn : ''}`}>
-          <span className={s.noticeTag}>{n.tag}</span>
-          <span>{n.text}</span>
-        </li>
-      ))}
+      {notes.map((n) => <Notice key={n.tag + n.text} note={n} />)}
     </ul>
+  )
+}
+
+// A short list of paths is worth more than the count that replaced it, so show
+// it outright. A long one folds, because a wall of paths buries the notice it
+// belongs to — but the count in the summary still tells you how many there are.
+const PATHS_SHOWN_BY_DEFAULT = 3
+
+function Notice({ note }) {
+  const paths = note.paths ?? []
+  const [show, setShow] = useState(paths.length > 0 && paths.length <= PATHS_SHOWN_BY_DEFAULT)
+
+  return (
+    <li className={`${s.notice} ${note.attn ? s.attn : ''}`}>
+      <span className={s.noticeTag}>{note.tag}</span>
+      <div className={s.noticeBody}>
+        <span>
+          {note.text}
+          {paths.length > PATHS_SHOWN_BY_DEFAULT && (
+            <button className={s.linkQuiet} onClick={() => setShow(!show)} aria-expanded={show}>
+              {show ? 'hide paths' : `show ${paths.length} paths`}
+            </button>
+          )}
+        </span>
+        {show && (
+          <ul className={s.noticePaths}>
+            {paths.map((p) => <li key={p} title={p}>{p}</li>)}
+          </ul>
+        )}
+      </div>
+    </li>
   )
 }
 
