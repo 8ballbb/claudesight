@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import s from './app.module.css'
+import { diffText } from '../server/linediff.js'
 
 // State what the app DOES, not what would hypothetically happen. Saving is
 // refused outright for all three of these — the text below the box is view-only.
@@ -95,28 +96,24 @@ function factsFor(item, doc) {
 
 // Every state names itself. An empty pane after pressing Compare would say
 // "no difference" to a reader when it might mean "could not be computed".
-function Diff({ result }) {
+// Both diffs are computed in the direction of the action, so `add` always
+// means the action adds this line. The verb is the only thing that differs.
+function Diff({ result, verb, nothingToDo }) {
   if (!result) return <p className={s.hint}>Comparing…</p>
-  if (result.state === 'identical') {
-    return <p className={s.hint}>Identical to the file on disk — restoring would change nothing.</p>
-  }
+  if (result.state === 'identical') return <p className={s.hint}>{nothingToDo}</p>
   if (result.state !== 'changed') {
     return <p className={`${s.hint} ${s.bad}`}>Could not compare: {result.reason}</p>
   }
   return (
     <div className={s.diff}>
-      {/* Stated in the direction the reader cares about. The diff was computed
-          version -> current, so a line only in the version is one a restore
-          would bring back, and a line only in the current file is one it would
-          take away. Saying "N changes" would leave which is which unsaid. */}
       <p className={s.diffHead}>
-        Restoring would add <b>{result.delCount}</b> line{result.delCount === 1 ? '' : 's'}
-        {' '}and remove <b>{result.addCount}</b>.
+        {verb} would add <b>{result.addCount}</b> line{result.addCount === 1 ? '' : 's'}
+        {' '}and remove <b>{result.delCount}</b>.
       </p>
       <ol className={s.diffLines}>
         {result.lines.map((l, i) => (
           <li key={i} className={s[l.type]}>
-            <span className={s.diffMark}>{l.type === 'add' ? '\u2212' : l.type === 'del' ? '+' : '\u00a0'}</span>
+            <span className={s.diffMark}>{l.type === 'add' ? '+' : l.type === 'del' ? '\u2212' : '\u00a0'}</span>
             <span className={s.diffText}>{l.text || '\u00a0'}</span>
           </li>
         ))}
@@ -142,6 +139,7 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
   const [pendingDelete, setPendingDelete] = useState(null)
   // Keyed by version id, so opening one comparison closes the last.
   const [diff, setDiff] = useState(null)
+  const [preview, setPreview] = useState(false)
 
   const cls = item.writability.class
   const editable = cls === 'free' || cls === 'exec'
@@ -244,6 +242,13 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
     ? 'missing-declared'
     : readErr?.error
   const dirty = doc && text !== doc.content
+  // What saving would change, against what was on disk when this was opened.
+  // Computed here rather than server-side: the engine has no Node dependency,
+  // and a round trip per keystroke would be absurd.
+  const saveDiff = React.useMemo(
+    () => (dirty ? diffText(doc.content, text, { beforeLabel: 'the file', afterLabel: 'your edit' }) : null),
+    [dirty, doc, text],
+  )
 
   // The guard lives above this component because it has to survive this
   // component being unmounted. Report upward; do not decide here.
@@ -336,6 +341,13 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
                     </li>
                   ))}
                 </ul>
+                {/* The list above names which settings keys become executable.
+                    It says nothing about what else changed in the file you are
+                    about to install, which is the rest of what you are agreeing
+                    to. Only for a save — a restore has its own Compare. */}
+                {!confirm.versionId && saveDiff && (
+                  <Diff result={saveDiff} verb="Saving" nothingToDo="No other change to the file." />
+                )}
                 <div className={s.actions}>
                   <button
                     className={`${s.btn} ${s.btnDanger}`}
@@ -357,11 +369,20 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
                   {busy ? 'Working…' : 'Save'}
                 </button>
                 {dirty && (
+                  <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setPreview(!preview)}>
+                    {preview ? 'Hide changes' : 'Preview changes'}
+                  </button>
+                )}
+                {dirty && (
                   <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setText(doc.content)}>
                     Revert
                   </button>
                 )}
               </div>
+            )}
+
+            {editable && !confirm && preview && dirty && (
+              <Diff result={saveDiff} verb="Saving" nothingToDo="No change." />
             )}
 
             {status && <p className={`${s.status} ${status.tone === 'good' ? s.good : s.bad}`}>{status.text}</p>}
@@ -435,7 +456,13 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange }) 
                           onClick={() => setPendingDelete(v.id)}>Delete</button>
                       </div>
                     )}
-                    {diff?.id === v.id && <Diff result={diff.result} />}
+                    {diff?.id === v.id && (
+                      <Diff
+                        result={diff.result}
+                        verb="Restoring"
+                        nothingToDo="Identical to the file on disk — restoring would change nothing."
+                      />
+                    )}
                   </li>
                 ))}
               </ul>

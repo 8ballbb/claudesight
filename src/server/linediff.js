@@ -61,7 +61,10 @@ export function diffText(before, after, { beforeLabel = 'version', afterLabel = 
     return { state: 'identical', reason: null, lines: [], addCount: 0, delCount: 0 }
   }
 
-  const size = Math.max(Buffer.byteLength(before), Buffer.byteLength(after))
+  // TextEncoder rather than Buffer: this module runs in the browser too, so a
+  // save preview needs no round trip to the server.
+  const bytes = (t) => new TextEncoder().encode(t).length
+  const size = Math.max(bytes(before), bytes(after))
   if (size > MAX_BYTES) {
     return {
       state: 'unverifiable',

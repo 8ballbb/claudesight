@@ -859,10 +859,13 @@
 .diffMark { width: 8px; flex: none; color: var(--faint); }
 .diffText { white-space: pre-wrap; overflow-wrap: anywhere; }
 
-/* A restore ADDS what only the version has and REMOVES what only the file has,
-   so the colours follow the restore, not the chronology. */
-.del { background: color-mix(in srgb, var(--ok) 11%, transparent); }
-.del .diffMark { color: var(--ok); }
-.add { background: color-mix(in srgb, var(--bad) 11%, transparent); }
-.add .diffMark { color: var(--bad); }
+/* Both diffs are computed in the direction of the action, so `add` is always a
+   line the action introduces and `del` always one it takes away. Colour follows
+   the mark: green with +, red with −. These were inverted when the restore diff
+   ran backwards and the view corrected it; unifying the direction without
+   updating them here left + rendering red. */
+.add { background: color-mix(in srgb, var(--ok) 11%, transparent); }
+.add .diffMark { color: var(--ok); }
+.del { background: color-mix(in srgb, var(--bad) 11%, transparent); }
+.del .diffMark { color: var(--bad); }
 .same { color: var(--dim); }

@@ -125,7 +125,10 @@ export function compareVersion(target, id, home = os.homedir()) {
   if (current === null) {
     return { state: 'unverifiable', reason: currentReason, lines: [], addCount: 0, delCount: 0 }
   }
-  return diffText(snapshot, current, { beforeLabel: 'the version', afterLabel: 'the current file' })
+  // current -> snapshot, because that is what restoring does. Diffing the
+  // other way round and flipping the signs in the UI works until someone
+  // reads only one half of it.
+  return diffText(current, snapshot, { beforeLabel: 'the current file', afterLabel: 'the version' })
 }
 
 export function readVersion(target, id, home = os.homedir()) {

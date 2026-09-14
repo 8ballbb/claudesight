@@ -69,8 +69,10 @@ describe('compareVersion', () => {
     fs.writeFileSync(target, 'first' + NL + 'CHANGED' + NL)
     const d = compareVersion(target, v.version.id, home)
     expect(d.state).toBe('changed')
-    expect(d.lines.some((l) => l.type === 'del' && l.text === 'second')).toBe(true)
-    expect(d.lines.some((l) => l.type === 'add' && l.text === 'CHANGED')).toBe(true)
+    // add/del are stated from the point of view of the action: restoring this
+    // version would bring 'second' back and take 'CHANGED' away.
+    expect(d.lines.some((l) => l.type === 'add' && l.text === 'second')).toBe(true)
+    expect(d.lines.some((l) => l.type === 'del' && l.text === 'CHANGED')).toBe(true)
     fs.rmSync(home, { recursive: true, force: true })
   })
 
@@ -97,5 +99,38 @@ describe('compareVersion', () => {
     expect(d.state).toBe('unverifiable')
     expect(d.reason).toContain('snapshot')
     fs.rmSync(home, { recursive: true, force: true })
+  })
+})
+
+describe('one direction convention, used by both surfaces', () => {
+  const src = fs.readFileSync('src/ui/Editor.jsx', 'utf8')
+
+  it('states the verb rather than a neutral change count', () => {
+    expect(src).toContain('verb="Restoring"')
+    expect(src).toContain('verb="Saving"')
+    expect(src).toContain('{verb} would add')
+  })
+
+  it('never flips the marks — add is always what the action adds', () => {
+    // The restore diff used to be computed backwards and corrected in the view.
+    // That works until someone reads one half of it without the other.
+    expect(src).toContain("l.type === 'add' ? '+'")
+    expect(src).not.toContain("l.type === 'add' ? '−'")
+  })
+
+  it('runs the engine in the browser rather than per keystroke over HTTP', () => {
+    expect(src).toContain("import { diffText } from '../server/linediff.js'")
+    expect(fs.readFileSync('src/server/linediff.js', 'utf8')).not.toContain('Buffer.byteLength')
+  })
+
+  it('puts the content diff inside the confirmation for executable files', () => {
+    // The key list says which settings become executable; it says nothing
+    // about the rest of the file you are agreeing to install.
+    expect(src).toMatch(/!confirm\.versionId && saveDiff/)
+  })
+
+  it('offers the preview only when there is an unsaved change', () => {
+    expect(src).toContain('{preview ? \'Hide changes\' : \'Preview changes\'}')
+    expect(src).toMatch(/preview && dirty/)
   })
 })
