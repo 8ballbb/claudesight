@@ -120,6 +120,15 @@ the file is worse than `null` and a sentence saying the parser did not say.
 build error, no console error. The layout was simply wrong forever. When you remove a
 variable, grep for its bare name, not just its declaration.
 
+**A push to main publishes to npm.** There is no separate release step and no manual
+version bump. `scripts/release-version.js` derives the version from commit subjects since
+the last `v*` tag; the `release` job in `ci.yml` commits it back, tags, publishes with
+provenance and opens a GitHub release. Three consequences worth holding in mind: a commit
+touching `bin/`, `src/`, `package.json`, the lockfile or `vite.config.js` ships to users
+within minutes; a published version can never be changed, only superseded; and the
+`audit` job blocks releases, so a high advisory in a dev dependency stops shipping
+entirely. The lockfile counts as shipping because React is compiled into the UI bundle.
+
 **Build before serving.** `bin/claudescope.js` serves `dist/`. Source edits are invisible
 until `npm run build`.
 

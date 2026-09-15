@@ -31,7 +31,8 @@
   "files": [
     "bin",
     "src",
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=20"
@@ -42,7 +43,7 @@
     "build": "vite build",
     "prepack": "npm run build",
     "test": "vitest run",
-    "lint": "eslint src tests",
+    "lint": "eslint src tests scripts",
     "prepare": "npm run build"
   },
   "dependencies": {

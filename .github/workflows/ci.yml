@@ -5,11 +5,21 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Force a bump size instead of deriving it from commits'
+        required: false
+        default: ''
+        type: choice
+        options: ['', 'patch', 'minor', 'major']
 
-# A second push to the same branch makes the first run pointless.
+# On a branch, a second push makes the first run pointless. On main it does
+# not: a run cancelled partway through `release` can land between publishing
+# to npm and pushing the tag that records it, leaving the next run unable to
+# work out where it left off. main runs queue instead.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test:
@@ -79,3 +89,111 @@ jobs:
       # in build tooling should not block a pull request, but a high one in
       # anything should be looked at.
       - run: npm audit --audit-level=high
+
+  # Publishing happens only after the full matrix and the audit are green, in
+  # the same run, on the same commit — `needs` is a hard dependency, unlike a
+  # cross-workflow trigger that can fire on a different tree.
+  release:
+    needs: [test, audit]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+
+    permissions:
+      contents: write   # push the release commit, the tag, and the GitHub release
+      id-token: write   # sign the npm provenance attestation
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Deriving the version means reading every tag and every commit
+          # since the last one. A shallow clone has neither.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Work out whether this push is a release, and which version
+        id: plan
+        env:
+          FORCE_BUMP: ${{ inputs.bump }}
+        run: node scripts/release-version.js >> "$GITHUB_OUTPUT"
+
+      - name: Nothing to publish
+        if: steps.plan.outputs.release == 'no'
+        env:
+          REASON: ${{ steps.plan.outputs.reason }}
+        run: echo "No release — $REASON"
+
+      - name: Record the version in the repository
+        if: steps.plan.outputs.release == 'yes'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          # The tag is created locally and pushed only after npm accepts the
+          # publish. Everything before the publish is reversible; the publish
+          # is not. If it fails, nothing has left this runner.
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "refusing to release a version that is not a semver triple: $VERSION"
+            exit 1
+          }
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          npm version "$VERSION" --no-git-tag-version
+
+          {
+            echo "# Changelog"
+            echo
+            echo "## v$VERSION — $(date -u +%Y-%m-%d)"
+            echo
+            cat release-notes.md
+            if [ -f CHANGELOG.md ]; then
+              echo
+              # Drop the old file's own heading and the blank line under it.
+              awk 'NR<=2 && (/^# Changelog$/ || /^$/) { next } { print }' CHANGELOG.md
+            fi
+          } > CHANGELOG.next
+          mv CHANGELOG.next CHANGELOG.md
+
+          git add package.json package-lock.json CHANGELOG.md
+          git commit -m "chore(release): v$VERSION"
+          git tag -a "v$VERSION" -m "v$VERSION"
+
+      - name: Publish to npm
+        if: steps.plan.outputs.release == 'yes'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Push the release commit and its tag
+        if: steps.plan.outputs.release == 'yes'
+        env:
+          VERSION: v${{ steps.plan.outputs.version }}
+        run: |
+          # A push authenticated with GITHUB_TOKEN does not start another
+          # workflow run, so the release commit cannot trigger a release.
+          for attempt in 1 2 3; do
+            if git push --follow-tags origin HEAD:main; then exit 0; fi
+            echo "push rejected (attempt $attempt) — rebasing onto main and retrying"
+            git pull --rebase origin main
+            # The rebase rewrote the release commit; the annotated tag is still
+            # on the original, which is no longer on any branch. Move it.
+            git tag -f -a "$VERSION" -m "$VERSION" HEAD
+          done
+          echo "could not push the release commit; $VERSION IS published to npm"
+          exit 1
+
+      - name: Announce it on GitHub
+        if: steps.plan.outputs.release == 'yes'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.plan.outputs.version }}" \
+            --title "v${{ steps.plan.outputs.version }}" \
+            --notes-file release-notes.md

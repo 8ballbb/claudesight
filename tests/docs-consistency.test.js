@@ -47,9 +47,22 @@ describe('the docs describe this project, accurately', () => {
     }
   })
 
-  it('states the npm situation truthfully', () => {
-    // Not published; the name is free. Both halves matter — claiming either
-    // that it IS published or that the name is taken would mislead.
-    expect(readme).toMatch(/not published to npm/i)
+  it('tells people to install the name that is actually published', () => {
+    // The README's first instruction is an npm install of this package. If the
+    // package were ever renamed, this is the line that would start lying.
+    expect(readme).toContain(`npx ${pkg.name}@latest`)
+    expect(Object.keys(pkg.bin)).toContain(pkg.name)
+  })
+
+  it('no longer claims the package is unpublished', () => {
+    // It was true until the release workflow landed; leaving it in place would
+    // tell readers the working command does not work.
+    expect(readme).not.toMatch(/not published to npm/i)
+  })
+
+  it('quotes no test count, because a quoted count goes stale silently', () => {
+    // It said 296 while the suite ran 304. A number nothing checks is a claim
+    // nothing maintains.
+    expect(readme).not.toMatch(/#\s*\d+ tests/)
   })
 })

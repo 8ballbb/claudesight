@@ -57,6 +57,35 @@ cross-origin read, a form-shaped write and a rebinding attempt are refused — 4
 macOS runners only, matching the app. Adding a platform means adding its runner in the
 same change.
 
+## Releasing
+
+There is no release ritual. A push to `main` that changes anything the package ships is
+published to npm automatically, by the `release` job in the same workflow — after the
+matrix and the audit are green, never before.
+
+The version is derived from the commit messages since the last `v*` tag, by
+`scripts/release-version.js`:
+
+| Commits since the last tag | Result |
+|---|---|
+| Nothing outside docs, tests, CI | no release at all |
+| Anything else | patch |
+| A `feat:` commit | minor |
+| A `!` subject or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0 |
+
+That last row is deliberate: reaching 1.0.0 should be a decision, not a side effect of a
+commit message. Run the workflow manually with a forced bump when you mean it.
+
+A commit whose subject follows no convention still counts as a patch. Failing toward
+shipping a fix is recoverable; failing toward silence leaves a fix unreleased with nothing
+to say why. That logic has tests in `tests/release-version.test.js` — it decides what
+reaches users, so it is held to the same standard as the app.
+
+The job commits the new version, the lockfile and a `CHANGELOG.md` entry back to `main`,
+tags it, publishes with npm provenance, and opens a GitHub release. It publishes **after**
+everything reversible has already succeeded locally, because the publish is the only step
+that cannot be undone.
+
 ## Pull requests
 
 Small and self-contained beats comprehensive. Say what you changed and why; if you found a

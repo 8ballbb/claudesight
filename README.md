@@ -6,10 +6,7 @@ See and edit every Claude Code artifact on your machine — globally and per pro
 folding — have only ever run on macOS, so the app refuses to start elsewhere rather than
 half-working on files you rely on. Linux support is welcome; see `CONTRIBUTING.md`.
 
-    git clone https://github.com/8ballbb/claudescope
-    cd claudescope
-    npm install        # also builds the UI
-    npm start
+    npx claudescope@latest
 
 Opens a local web UI at `http://127.0.0.1:7717/`. Stop it with Ctrl-C.
 
@@ -18,12 +15,19 @@ the port is fixed rather than ephemeral so the URL survives a restart and can be
 bookmarked. If the port is taken the server says so and names an alternative instead of
 quietly moving.
 
-Or without cloning:
+`npx` keeps a copy once it has run, so plain `npx claudescope` may keep serving the
+version you first ran. The `@latest` above forces it to check.
+
+To run the current `main` instead of the last published version:
 
     npx github:8ballbb/claudescope
 
-> Not published to npm yet, so `npx claudescope` will not find it — use the GitHub form
-> above. The name is free on npm and reserved for this project if it is ever published.
+Or from a clone, which is what you want if you intend to change anything:
+
+    git clone https://github.com/8ballbb/claudescope
+    cd claudescope
+    npm install        # also builds the UI
+    npm start
 
 ![The global view: artifacts grouped by kind and banded by owner, with a hook whose script is missing flagged as broken](docs/img/global.jpg)
 
@@ -98,7 +102,7 @@ size limit — it says so and why, and is never reported as "no change".
 ## Development
 
     npm install
-    npm test          # 296 tests
+    npm test
     npm run lint
     npm run build     # required before the CLI can serve the UI
 
