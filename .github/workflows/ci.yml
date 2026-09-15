@@ -145,7 +145,14 @@ jobs:
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          npm version "$VERSION" --no-git-tag-version
+          # `npm version` errors on a no-op, and two real cases ask for one:
+          # the first release, which ships the version package.json already
+          # declares, and a push where somebody bumped it by hand.
+          if [ "$(node -p 'require("./package.json").version')" = "$VERSION" ]; then
+            echo "package.json already declares $VERSION"
+          else
+            npm version "$VERSION" --no-git-tag-version
+          fi
 
           {
             echo "# Changelog"
@@ -162,6 +169,8 @@ jobs:
           mv CHANGELOG.next CHANGELOG.md
 
           git add package.json package-lock.json CHANGELOG.md
+          # On the first release only the changelog is new, so there is always
+          # something staged; a later release always changes the version too.
           git commit -m "chore(release): v$VERSION"
           git tag -a "v$VERSION" -m "v$VERSION"
 
