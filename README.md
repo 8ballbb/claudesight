@@ -22,8 +22,8 @@ Or without cloning:
 
     npx github:8ballbb/claudescope
 
-> **Not** `npx claudescope` — that name on npm belongs to an unrelated project
-> (`bernabranco/claudescope`). This one is not published to npm.
+> Not published to npm yet, so `npx claudescope` will not find it — use the GitHub form
+> above. The name is free on npm and reserved for this project if it is ever published.
 
 ![The global view: artifacts grouped by kind and banded by owner, with a hook whose script is missing flagged as broken](docs/img/global.jpg)
 

@@ -163,8 +163,10 @@ no parser exists. Revision 2's per-kind `rare-kinds/` fixture is deleted — it 
 
 ## 5. Architecture
 
-Single Node process, `npx claudescope`, API + SPA on `127.0.0.1`. Chosen for needing no
-install rights, code-signing or MDM exception.
+Single Node process, run with `npx`, API + SPA on `127.0.0.1`. Chosen for needing no
+install rights, code-signing or MDM exception. Today that is
+`npx github:8ballbb/claudescope`; `npx claudescope` becomes true if the package is ever
+published, and the name is free on npm for that.
 
 **Stack decided** (revision 2 left it open; that is where side projects stall): Vite +
 React + plain CSS modules. No component library, no state manager. ~7 screens.
