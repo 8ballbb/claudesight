@@ -113,7 +113,7 @@ export function bandsFor(items) {
   return bands
 }
 
-const OPEN_KEY = 'atlas.open'
+const OPEN_KEY = 'claudescope.open'
 
 function loadOpen() {
   try { return JSON.parse(window.localStorage.getItem(OPEN_KEY) ?? '{}') } catch { return {} }

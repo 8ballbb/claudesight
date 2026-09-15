@@ -5,7 +5,7 @@ import { trashMechanism, moveToTrash } from '../src/server/trash.js'
 const runWithPlatform = (platform) => {
   try {
     execFileSync(process.execPath, ['-e',
-      `Object.defineProperty(process,'platform',{value:'${platform}'});import('./bin/claude-atlas.js')`,
+      `Object.defineProperty(process,'platform',{value:'${platform}'});import('./bin/claudescope.js')`,
     ], { encoding: 'utf8', stdio: 'pipe', timeout: 10000 })
     return ''
   } catch (err) {
@@ -21,7 +21,7 @@ describe('macOS only, and says so', () => {
   })
 
   it('points somewhere, rather than just saying no', () => {
-    expect(runWithPlatform('win32')).toContain('github.com/8ballbb/claude-atlas/issues')
+    expect(runWithPlatform('win32')).toContain('github.com/8ballbb/claudescope/issues')
   })
 })
 

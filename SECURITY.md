@@ -3,13 +3,13 @@
 ## Reporting
 
 Report anything you think is a vulnerability privately, through
-[GitHub's private advisory form](https://github.com/8ballbb/claude-atlas/security/advisories/new),
+[GitHub's private advisory form](https://github.com/8ballbb/claudescope/security/advisories/new),
 not as a public issue. There is no bounty and no formal SLA — this is one person's
 project — but a report will be read and answered.
 
 ## What this app can do, which is the reason to care
 
-claude-atlas reads your Claude Code configuration and **writes files that Claude Code
+claudescope reads your Claude Code configuration and **writes files that Claude Code
 later executes as shell** — hook commands and status-line scripts. A flaw that lets
 something else drive this API is a local code-execution flaw, and is treated as one.
 

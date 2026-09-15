@@ -3,7 +3,7 @@ import Inventory, { Notices } from './Inventory.jsx'
 import Editor from './Editor.jsx'
 import s from './app.module.css'
 
-const LAST_PROJECT = 'atlas.lastProject'
+const LAST_PROJECT = 'claudescope.lastProject'
 
 // Below this the two panes stack, because a 320px list beside a 320px
 // inventory is worse than either one full width.

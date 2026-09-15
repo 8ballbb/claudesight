@@ -1,4 +1,4 @@
-# claude-atlas — Design
+# claudescope — Design
 
 **Date:** 2026-09-11
 **Revision:** 6 (see §14)
@@ -89,7 +89,7 @@ What CCO does **not** do is **edit**. It moves and deletes; it marks config and 
 *Locked*. Editing artifacts in place is the user's explicit requirement and the one thing
 genuinely absent from the market.
 
-**Therefore: editing is not a later phase, it is the product.** If claude-atlas is not an
+**Therefore: editing is not a later phase, it is the product.** If claudescope is not an
 editor in its first shippable version, it has no reason to exist over `npx
 @mcpware/cross-code-organizer`. §13 is phased accordingly.
 
@@ -163,14 +163,14 @@ no parser exists. Revision 2's per-kind `rare-kinds/` fixture is deleted — it 
 
 ## 5. Architecture
 
-Single Node process, `npx claude-atlas`, API + SPA on `127.0.0.1`. Chosen for needing no
+Single Node process, `npx claudescope`, API + SPA on `127.0.0.1`. Chosen for needing no
 install rights, code-signing or MDM exception.
 
 **Stack decided** (revision 2 left it open; that is where side projects stall): Vite +
 React + plain CSS modules. No component library, no state manager. ~7 screens.
 
 ```
-npx claude-atlas
+npx claudescope
   ├─ Security      Origin/Host/JSON gate, CSP, value-shape write gate       (§9)
   ├─ RootResolver  CLAUDE_CONFIG_DIR → $HOME/.claude                        (§6.1)
   ├─ ScopeRegistry reconciles registry ⊕ sessions ⊕ default bounded scan    (§6.2)
@@ -419,7 +419,7 @@ discipline in §8.4 and §8.6 protects the file; nothing protected what had been
 
 `<original>.atlas-<timestamp>.bak` **beside the original**, inheriting that directory's
 permissions and any corporate DLP or Time Machine exclusion already covering `~/.claude`.
-Revision 2's `~/.claude-atlas/backups/` created a new plaintext-secret store outside every
+Revision 2's `~/.claudescope/backups/` created a new plaintext-secret store outside every
 existing exclusion, with a three-policy retention GC and no mode specified — with `umask
 022` that yields world-readable copies of `settings.json`'s `env` block and
 `~/.claude.json`'s `oauthAccount`.
@@ -653,7 +653,7 @@ domain-accuracy, product). Material changes:
 
 **Revision 6 — 2026-09-14.** Scope narrowed to macOS. The platform-dependent paths — the
 Trash mechanism and filesystem case folding — had only ever executed on darwin, and the
-Linux XDG trash branch had never run outside the test suite. `bin/claude-atlas.js` now
+Linux XDG trash branch had never run outside the test suite. `bin/claudescope.js` now
 refuses to start elsewhere; the directory-move implementation survives as the `folder`
 mechanism, named for what it is. Case folding in `writability.js` is unconditional: it
 only ever makes more paths match a protected prefix, so it errs toward refusing a write

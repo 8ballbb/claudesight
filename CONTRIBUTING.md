@@ -1,7 +1,7 @@
 # Contributing
 
-    git clone https://github.com/8ballbb/claude-atlas
-    cd claude-atlas
+    git clone https://github.com/8ballbb/claudescope
+    cd claudescope
     npm install        # also builds the UI
     npm test           # 293 tests
     npm start          # http://127.0.0.1:7717/ — Ctrl-C to stop
@@ -44,7 +44,7 @@ XDG trash implementation shipped for months without ever executing outside the t
 that is the same class of claim as a bare zero.
 
 If you add Linux or Windows: start from the `folder` mechanism in `src/server/trash.js`,
-relax the guard in `bin/claude-atlas.js`, **and add CI that runs the suite on that platform
+relax the guard in `bin/claudescope.js`, **and add CI that runs the suite on that platform
 in the same change.** A platform without CI is a claim nobody has checked.
 
 ## CI

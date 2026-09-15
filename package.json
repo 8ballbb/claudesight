@@ -1,5 +1,5 @@
 {
-  "name": "claude-atlas",
+  "name": "claudescope",
   "version": "0.1.0",
   "description": "See and edit every Claude Code artifact on your machine \u2014 global and per project. macOS, local only.",
   "keywords": [
@@ -14,19 +14,19 @@
     "dotfiles",
     "cli"
   ],
-  "homepage": "https://github.com/8ballbb/claude-atlas#readme",
+  "homepage": "https://github.com/8ballbb/claudescope#readme",
   "bugs": {
-    "url": "https://github.com/8ballbb/claude-atlas/issues"
+    "url": "https://github.com/8ballbb/claudescope/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/8ballbb/claude-atlas.git"
+    "url": "git+https://github.com/8ballbb/claudescope.git"
   },
   "author": "Andrew Poole",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "claude-atlas": "./bin/claude-atlas.js"
+    "claudescope": "./bin/claudescope.js"
   },
   "files": [
     "bin",
@@ -37,7 +37,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node bin/claude-atlas.js",
+    "start": "node bin/claudescope.js",
     "dev": "vite",
     "build": "vite build",
     "prepack": "npm run build",

@@ -18,7 +18,7 @@ const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex')
 const keyFor = (target) => sha(path.resolve(target)).slice(0, 16)
 
 export function storeRoot(home = os.homedir()) {
-  return path.join(home, '.claude-atlas', 'versions')
+  return path.join(home, '.claudescope', 'versions')
 }
 
 // Snapshots of settings.json can contain an `env` block with API keys, so the
@@ -27,7 +27,7 @@ function ensureDir(dir, home) {
   fs.mkdirSync(dir, { recursive: true })
   // Every directory we create, not just the leaf: mkdir's recursive mode does
   // not apply to intermediates, and the mode argument is umask-masked anyway.
-  const chain = [path.join(home, '.claude-atlas'), storeRoot(home), dir]
+  const chain = [path.join(home, '.claudescope'), storeRoot(home), dir]
   for (const d of chain) {
     fs.chmodSync(d, 0o700)
     const mode = fs.statSync(d).mode & 0o777
@@ -154,8 +154,8 @@ export function deleteVersion(target, id, home = os.homedir(), forceMechanism = 
 
   // One self-describing folder, so the Trash entry says what it is and the
   // snapshot inside carries the original filename rather than a hash.
-  const box = path.join(home, '.claude-atlas', '.trashing',
-    `claude-atlas-version-${path.basename(target)}-${id}`)
+  const box = path.join(home, '.claudescope', '.trashing',
+    `claudescope-version-${path.basename(target)}-${id}`)
   fs.rmSync(box, { recursive: true, force: true })
   fs.mkdirSync(box, { recursive: true })
 

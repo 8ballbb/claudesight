@@ -24,7 +24,7 @@ const THEMES = [
   ['Pastels', [['pastel-dark', 'Dark'], ['pastel-light', 'Light']]],
 ]
 
-const THEME_KEY = 'atlas.theme'
+const THEME_KEY = 'claudescope.theme'
 const DEFAULT_THEME = 'instrument-dark'
 const VALID = new Set(THEMES.flatMap(([, opts]) => opts.map(([v]) => v)))
 
@@ -224,7 +224,7 @@ export default function App() {
   return (
     <main className={s.page}>
       <header className={s.header}>
-        <h1 className={s.wordmark}>claude·atlas</h1>
+        <h1 className={s.wordmark}>claude·scope</h1>
         <nav className={s.nav}>
           <button
             className={`${s.navTab} ${page === 'global' ? s.navOn : ''}`}
@@ -251,7 +251,7 @@ export default function App() {
               <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => setQuitting(false)}>Cancel</button>
             </span>
           ) : (
-            <button className={s.linkQuiet} onClick={() => setQuitting(true)} title="Stop the claude-atlas server">
+            <button className={s.linkQuiet} onClick={() => setQuitting(true)} title="Stop the claudescope server">
               quit
             </button>
           )
@@ -260,7 +260,7 @@ export default function App() {
 
       {server === 'gone' && (
         <p className={s.serverGone}>
-          <b>The claude-atlas server has stopped.</b> This page is showing what it last read
+          <b>The claudescope server has stopped.</b> This page is showing what it last read
           {readAt ? ` at ${readAt.toLocaleTimeString()}` : ''} — it is not being checked against
           disk any more, and nothing here can be saved. Run <code>npm start</code> again, then
           reload.

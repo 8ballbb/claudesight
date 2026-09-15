@@ -83,7 +83,7 @@ describe('projects page: list beside detail, and it remembers', () => {
   })
 
   it('remembers the last project, the way fold state is remembered', () => {
-    expect(jsx).toContain("const LAST_PROJECT = 'atlas.lastProject'")
+    expect(jsx).toContain("const LAST_PROJECT = 'claudescope.lastProject'")
     expect(jsx).toContain('window.localStorage.setItem(LAST_PROJECT, project.path)')
   })
 

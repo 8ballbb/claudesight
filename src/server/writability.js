@@ -14,7 +14,7 @@ const MANAGED_DIRS = [
 const fold = (p) => p.normalize('NFC').toLowerCase()
 
 // Note: a plain startsWith(root) also matches "~/.claude.json" and
-// "~/.claude-atlas". Compare on path segments. Spec §9.4.
+// "~/.claudescope". Compare on path segments. Spec §9.4.
 function isUnder(child, parent) {
   const rel = path.relative(fold(path.resolve(parent)), fold(path.resolve(child)))
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)

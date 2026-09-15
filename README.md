@@ -1,4 +1,4 @@
-# claude-atlas
+# claudescope
 
 See and edit every Claude Code artifact on your machine — globally and per project.
 
@@ -6,8 +6,8 @@ See and edit every Claude Code artifact on your machine — globally and per pro
 folding — have only ever run on macOS, so the app refuses to start elsewhere rather than
 half-working on files you rely on. Linux support is welcome; see `CONTRIBUTING.md`.
 
-    git clone https://github.com/8ballbb/claude-atlas
-    cd claude-atlas
+    git clone https://github.com/8ballbb/claudescope
+    cd claudescope
     npm install        # also builds the UI
     npm start
 
@@ -20,10 +20,10 @@ quietly moving.
 
 Or without cloning:
 
-    npx github:8ballbb/claude-atlas
+    npx github:8ballbb/claudescope
 
-> **Not** `npx claude-atlas` — that name on npm belongs to an unrelated project
-> (`bernabranco/claude-atlas`). This one is not published to npm.
+> **Not** `npx claudescope` — that name on npm belongs to an unrelated project
+> (`bernabranco/claudescope`). This one is not published to npm.
 
 ![The global view: artifacts grouped by kind and banded by owner, with a hook whose script is missing flagged as broken](docs/img/global.jpg)
 
@@ -75,7 +75,7 @@ appears inside the confirmation for any file Claude Code executes as shell.
 ## Versions
 
 Editable files can be versioned on demand with an explicit button — not on every save.
-Versions live outside your config, in `~/.claude-atlas/versions/`, indexed so any file's
+Versions live outside your config, in `~/.claudescope/versions/`, indexed so any file's
 history can be found and restored.
 
 **Compare** shows what restoring a version would change, before you restore it. Both
@@ -106,7 +106,7 @@ Node 20 or later, on macOS.
 
 > Screenshots use a fabricated configuration, not a real one.
 
-[![CI](https://github.com/8ballbb/claude-atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/8ballbb/claude-atlas/actions/workflows/ci.yml)
+[![CI](https://github.com/8ballbb/claudescope/actions/workflows/ci.yml/badge.svg)](https://github.com/8ballbb/claudescope/actions/workflows/ci.yml)
 
 ## Contributing
 
@@ -115,7 +115,7 @@ threat model and how to report a vulnerability privately.
 
 ## Design
 
-`docs/superpowers/specs/2026-09-11-claude-atlas-design.md` is the authority on behaviour
+`docs/superpowers/specs/2026-09-11-claudescope-design.md` is the authority on behaviour
 and is kept current with revision notes. `CLAUDE.md` records the invariants that are easy
 to break and expensive to notice. Plans under `docs/superpowers/plans/completed/` are
 spent history, not guidance.

@@ -1,4 +1,4 @@
-/* claude-atlas — themed instrument panel.
+/* claudescope — themed instrument panel.
    Every surface reads from tokens, so a theme is a palette swap and nothing
    else. Six variants: instrument / cyber / pastel, each light and dark.
    No webfonts: this is served from disk with no network. */
