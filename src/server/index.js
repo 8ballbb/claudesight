@@ -76,7 +76,7 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
 
         if (url.pathname === '/' && (req.method === 'GET' || req.method === 'HEAD')) {
           res.writeHead(200, { 'content-type': 'text/html' })
-          let index = '<!doctype html><title>claudescope</title><p>Run <code>npm run build</code>.</p>'
+          let index = '<!doctype html><title>claudesight</title><p>Run <code>npm run build</code>.</p>'
           if (distDir) { try { index = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8') } catch { /* fall back */ } }
           return res.end(index)
         }

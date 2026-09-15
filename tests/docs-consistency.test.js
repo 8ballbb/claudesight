@@ -41,9 +41,48 @@ describe('the docs describe this project, accurately', () => {
     }
   })
 
-  it('carries no reference to the former name', () => {
+  it('carries no reference to either former name', () => {
     for (const [file, text] of allDocs) {
-      expect(text, `${file} still mentions the old name`).not.toMatch(/claude-atlas/i)
+      expect(text, `${file} still mentions the first name`).not.toMatch(/claude-atlas/i)
+    }
+  })
+
+  it('never tells anyone to run the name that could not be published', () => {
+    // `claudescope` survives in the spec's revision history on purpose — the
+    // rename has to stay explicable. What must not survive is an instruction:
+    // a command, a repo URL or a path naming it. That is the form the last
+    // botched rename took, and the form a reader can actually act on.
+    const instructions = [
+      /npx\s+(?:@[\w.-]+\/)?claudescope/i,
+      /github\.com\/8ballbb\/claudescope/i,
+      /bin\/claudescope\.js/i,
+      /npm\s+install\s+-g\s+(?:@[\w.-]+\/)?claudescope/i,
+    ]
+    for (const [file, text] of allDocs) {
+      for (const pattern of instructions) {
+        expect(text, `${file} still tells the reader to use the old name`).not.toMatch(pattern)
+      }
+    }
+  })
+
+  it('keeps the old name out of everything but the two places that explain it', () => {
+    // Two documents may name it, because in both the old name IS the subject:
+    // the spec's revision history, and CONTRIBUTING's note on checking a name.
+    // Everywhere else it is residue from a rename.
+    const exempt = {
+      'docs/superpowers/specs/2026-09-11-claudesight-design.md': '## 14. Revision history',
+      'CONTRIBUTING.md': '## Naming',
+    }
+    for (const [file, text] of allDocs) {
+      const heading = exempt[file]
+      if (!heading) {
+        expect(text, `${file} still mentions claudescope`).not.toMatch(/claudescope/i)
+        continue
+      }
+      const parts = text.split(heading)
+      expect(parts, `${file} lost the heading that exempts it`).toHaveLength(2)
+      expect(parts[0], `claudescope appears in ${file} outside ${heading}`)
+        .not.toMatch(/claudescope/i)
     }
   })
 
@@ -58,6 +97,16 @@ describe('the docs describe this project, accurately', () => {
     // It was true until the release workflow landed; leaving it in place would
     // tell readers the working command does not work.
     expect(readme).not.toMatch(/not published to npm/i)
+  })
+
+  it('renders a wordmark that is the package name', () => {
+    // The wordmark is written `claude·sight`, with a separator inside the word.
+    // A rename by find-and-replace does not see it — the last one missed it,
+    // and only looking at a screenshot caught it.
+    const jsx = fs.readFileSync('src/ui/App.jsx', 'utf8')
+    const mark = jsx.match(/className=\{s\.wordmark\}>([^<]+)</)
+    expect(mark, 'the wordmark heading moved or changed shape').not.toBeNull()
+    expect(mark[1].replace(/[^a-z]/gi, '').toLowerCase()).toBe(pkg.name.toLowerCase())
   })
 
   it('quotes no test count, because a quoted count goes stale silently', () => {

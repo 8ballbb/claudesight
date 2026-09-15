@@ -1,14 +1,14 @@
-# claudescope Phase 1 — "Loaded Now, Editable" Implementation Plan
+# claudesight Phase 1 — "Loaded Now, Editable" Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship an `npx claudescope` web app that shows every Claude Code artifact at global scope on one screen and lets the user edit the safe ones in place.
+**Goal:** Ship an `npx claudesight` web app that shows every Claude Code artifact at global scope on one screen and lets the user edit the safe ones in place.
 
 **Architecture:** Single Node process serving a JSON API and a Vite/React SPA on an ephemeral `127.0.0.1` port. Every filesystem read returns a discriminated `Result` (`ok`/`empty`/`absent`/`denied`/`malformed`) so "I didn't look there" can never render as "0 items". Every write is classified, validated, gated on executable value-shape, backed up, and performed under an `O_EXCL` lockfile.
 
 **Tech Stack:** Node 22 (floor: 20), Vite 5, React 18, CSS modules, Vitest, `markdown-it` + `dompurify`, `yaml` (frontmatter). No component library, no state manager.
 
-**Spec:** `docs/superpowers/specs/2026-09-11-claudescope-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-11-claudesight-design.md`
 
 ## Global Constraints
 
@@ -43,10 +43,10 @@ The `Result` discriminated union is the spec's core invariant (§10) and every l
 
 ```json
 {
-  "name": "claudescope",
+  "name": "claudesight",
   "version": "0.1.0",
   "type": "module",
-  "bin": { "claudescope": "./bin/claudescope.js" },
+  "bin": { "claudesight": "./bin/claudesight.js" },
   "engines": { "node": ">=20" },
   "scripts": {
     "dev": "vite",
@@ -115,7 +115,7 @@ dist/
 
 - [ ] **Step 5: Install dependencies**
 
-Run: `cd /path/to/claudescope && npm install`
+Run: `cd /path/to/claudesight && npm install`
 Expected: completes, `node_modules/` created, no `ERR!` lines.
 
 - [ ] **Step 6: Write the failing test**
@@ -1396,7 +1396,7 @@ const MANAGED_DIRS = [
 ]
 
 // Note: a plain startsWith(root) also matches "~/.claude.json" and
-// "~/.claudescope". Compare on path segments. Spec §9.4.
+// "~/.claudesight". Compare on path segments. Spec §9.4.
 function isUnder(child, parent) {
   const rel = path.relative(parent, child)
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
@@ -1921,7 +1921,7 @@ Spec §9.1, §9.2."
 ### Task 12: Server and API
 
 **Files:**
-- Create: `src/server/api.js`, `src/server/index.js`, `bin/claudescope.js`
+- Create: `src/server/api.js`, `src/server/index.js`, `bin/claudesight.js`
 - Test: `tests/api.test.js`
 
 **Interfaces:**
@@ -2111,7 +2111,7 @@ export function createServer({ root, distDir }) {
       if (url.pathname === '/' && url.searchParams.has('n')) {
         if (security.issueCookie(req, res)) {
           res.writeHead(200, { 'content-type': 'text/html' })
-          const index = distDir ? fs.readFileSync(path.join(distDir, 'index.html'), 'utf8') : '<!doctype html><title>claudescope</title>'
+          const index = distDir ? fs.readFileSync(path.join(distDir, 'index.html'), 'utf8') : '<!doctype html><title>claudesight</title>'
           return res.end(index)
         }
         return json(res, 403, { error: 'bad or used nonce' })
@@ -2172,7 +2172,7 @@ export function createServer({ root, distDir }) {
 }
 ```
 
-- [ ] **Step 5: Write `bin/claudescope.js`**
+- [ ] **Step 5: Write `bin/claudesight.js`**
 
 ```js
 #!/usr/bin/env node
@@ -2186,7 +2186,7 @@ const root = resolveRoot(process.env, process.env.HOME)
 
 try {
   const { url } = await createServer({ root, distDir: path.join(here, '..', 'dist') })
-  console.log(`claudescope — reading ${root.path} (${root.source})`)
+  console.log(`claudesight — reading ${root.path} (${root.source})`)
   console.log(url)
 } catch (err) {
   if (err.code === 'EADDRINUSE') {
@@ -2199,7 +2199,7 @@ try {
 
 - [ ] **Step 6: Fix the root argument**
 
-`resolveRoot` returns `{path, source}` but `createServer` expects a string. In `bin/claudescope.js`, change the call to:
+`resolveRoot` returns `{path, source}` but `createServer` expects a string. In `bin/claudesight.js`, change the call to:
 
 ```js
   const { url } = await createServer({ root: root.path, distDir: path.join(here, '..', 'dist') })
@@ -2213,7 +2213,7 @@ Expected: PASS, 6 tests.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/server/api.js src/server/index.js bin/claudescope.js tests/api.test.js
+git add src/server/api.js src/server/index.js bin/claudesight.js tests/api.test.js
 git commit -m "feat: inventory API with opaque ids and ephemeral-port server
 
 Ids are scan-time handles, never path-derived, so traversal via id is not
@@ -2279,7 +2279,7 @@ Expected: FAIL — files do not exist.
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>claudescope</title>
+    <title>claudesight</title>
   </head>
   <body>
     <div id="root"></div>
@@ -2341,7 +2341,7 @@ export default function App() {
   return (
     <main className={s.page}>
       <header className={s.header}>
-        <h1>claudescope</h1>
+        <h1>claudesight</h1>
         <p className={s.note}>{inv.root}</p>
       </header>
 
@@ -2589,7 +2589,7 @@ Expected: all test files pass; no skipped suites.
 
 - [ ] **Step 4: Launch against the real config and confirm by eye**
 
-Run: `node bin/claudescope.js`
+Run: `node bin/claudesight.js`
 Then open the printed URL. Confirm:
 - skills group shows **~23** items, each attributed to a plugin
 - a note reads *"No skills directory — nothing is configured there"* (not "0 skills")
@@ -2603,11 +2603,11 @@ Stop the server with Ctrl-C.
 - [ ] **Step 5: Write `README.md`**
 
 ```markdown
-# claudescope
+# claudesight
 
 See and edit every Claude Code artifact on your machine, at global scope.
 
-    npx claudescope
+    npx claudesight
 
 Opens a local web UI on an ephemeral `127.0.0.1` port. Reads
 `$CLAUDE_CONFIG_DIR` if set, otherwise `~/.claude`.

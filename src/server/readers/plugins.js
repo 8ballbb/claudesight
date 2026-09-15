@@ -14,6 +14,15 @@ export function readPlugins(root) {
 
   const plugins = []
   for (const [id, instances] of Object.entries(installed.value.plugins ?? {})) {
+    // Every instance list is an array in a file Claude Code wrote. A file
+    // somebody edited by hand may hold an object here, and iterating it threw
+    // a TypeError out of the reader — which emptied the ENTIRE inventory page,
+    // not just the plugin list. Skip the entry and say so; one unreadable
+    // plugin must not take the other artifacts down with it.
+    if (!Array.isArray(instances)) {
+      sources.push({ label: `installed_plugins → ${id}`, dir: installedPath, state: 'unexpected-shape' })
+      continue
+    }
     for (const inst of instances) {
       const [name, marketplace] = id.split('@')
       const manifestPath = path.join(inst.installPath, '.claude-plugin', 'plugin.json')

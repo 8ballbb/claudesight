@@ -72,7 +72,7 @@ describe('classify', () => {
   })
 
   it('does not confuse a sibling directory sharing the root prefix', () => {
-    const r = classify({ path: '/Users/x/.claudescope/backups/a.bak', kind: 'memory', root: '/Users/x/.claude' })
+    const r = classify({ path: '/Users/x/.claudesight/backups/a.bak', kind: 'memory', root: '/Users/x/.claude' })
     expect(r.class).toBe('readonly')
   })
 

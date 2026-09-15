@@ -9,7 +9,7 @@ import { createVersion, deleteVersion, listVersions } from '../src/server/versio
 const runWithPlatform = (platform) => {
   try {
     execFileSync(process.execPath, ['-e',
-      `Object.defineProperty(process,'platform',{value:'${platform}'});import('./bin/claudescope.js')`,
+      `Object.defineProperty(process,'platform',{value:'${platform}'});import('./bin/claudesight.js')`,
     ], { encoding: 'utf8', stdio: 'pipe', timeout: 10000 })
     return ''
   } catch (err) {
@@ -25,7 +25,7 @@ describe('macOS only, and says so', () => {
   })
 
   it('points somewhere, rather than just saying no', () => {
-    expect(runWithPlatform('win32')).toContain('github.com/8ballbb/claudescope/issues')
+    expect(runWithPlatform('win32')).toContain('github.com/8ballbb/claudesight/issues')
   })
 })
 
@@ -63,7 +63,7 @@ describe('the macOS mechanism, exercised for real', () => {
   it('reports success when it succeeded', () => {
     if (!available) return
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-trash-'))
-    const victim = path.join(dir, 'claudescope-test-victim.txt')
+    const victim = path.join(dir, 'claudesight-test-victim.txt')
     fs.writeFileSync(victim, 'delete me')
 
     const r = moveToTrash(victim)

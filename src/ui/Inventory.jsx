@@ -8,6 +8,10 @@ export const SOURCE_NOTE = {
   empty: (dir) => `${dir} exists but is empty`,
   denied: (dir) => `${dir} exists but could not be read (permission denied)`,
   malformed: (dir) => `${dir} could not be parsed`,
+  // The file parsed; something inside it was not the shape the reader expects.
+  // "Could not be parsed" would send you looking for a syntax error there is none of.
+  'unexpected-shape': (dir) =>
+    `${dir} parsed, but an entry inside it is not the expected shape and was skipped`,
 }
 
 // The internal class names are precise but they are not English. Show the
@@ -113,7 +117,7 @@ export function bandsFor(items) {
   return bands
 }
 
-const OPEN_KEY = 'claudescope.open'
+const OPEN_KEY = 'claudesight.open'
 
 function loadOpen() {
   try { return JSON.parse(window.localStorage.getItem(OPEN_KEY) ?? '{}') } catch { return {} }

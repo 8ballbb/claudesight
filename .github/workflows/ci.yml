@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   test:
-    # macOS only, matching the app: bin/claudescope.js refuses to start
+    # macOS only, matching the app: bin/claudesight.js refuses to start
     # anywhere else, and the platform-dependent paths — the Trash mechanism,
     # filesystem case folding — have never run on another platform. Adding a
     # platform means adding its runner here in the same change.
@@ -56,7 +56,7 @@ jobs:
 
       - name: The server starts and answers on its fixed port
         run: |
-          node bin/claudescope.js &
+          node bin/claudesight.js &
           for i in $(seq 1 20); do
             sleep 0.5
             code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7717/ || true)

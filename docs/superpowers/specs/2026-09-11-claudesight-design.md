@@ -1,4 +1,4 @@
-# claudescope — Design
+# claudesight — Design
 
 **Date:** 2026-09-11
 **Revision:** 6 (see §14)
@@ -89,7 +89,7 @@ What CCO does **not** do is **edit**. It moves and deletes; it marks config and 
 *Locked*. Editing artifacts in place is the user's explicit requirement and the one thing
 genuinely absent from the market.
 
-**Therefore: editing is not a later phase, it is the product.** If claudescope is not an
+**Therefore: editing is not a later phase, it is the product.** If claudesight is not an
 editor in its first shippable version, it has no reason to exist over `npx
 @mcpware/cross-code-organizer`. §13 is phased accordingly.
 
@@ -164,17 +164,14 @@ no parser exists. Revision 2's per-kind `rare-kinds/` fixture is deleted — it 
 ## 5. Architecture
 
 Single Node process, run with `npx`, API + SPA on `127.0.0.1`. Chosen for needing no
-install rights, code-signing or MDM exception. Published as
-`npx @andrewpoolejames/claudescope`, or `npx github:8ballbb/claudescope` to run the
-current main. The package is scoped because npm rejects the bare name `claudescope` as
-too similar to an unrelated `claude-scope`; a 404 on the registry means unregistered,
-not available, and the two differ only at publish time.
+install rights, code-signing or MDM exception. Published as `npx claudesight`, or
+`npx github:8ballbb/claudesight` to run the current main.
 
 **Stack decided** (revision 2 left it open; that is where side projects stall): Vite +
 React + plain CSS modules. No component library, no state manager. ~7 screens.
 
 ```
-claudescope
+claudesight
   ├─ Security      Origin/Host/JSON gate, CSP, value-shape write gate       (§9)
   ├─ RootResolver  CLAUDE_CONFIG_DIR → $HOME/.claude                        (§6.1)
   ├─ ScopeRegistry reconciles registry ⊕ sessions ⊕ default bounded scan    (§6.2)
@@ -423,7 +420,7 @@ discipline in §8.4 and §8.6 protects the file; nothing protected what had been
 
 `<original>.atlas-<timestamp>.bak` **beside the original**, inheriting that directory's
 permissions and any corporate DLP or Time Machine exclusion already covering `~/.claude`.
-Revision 2's `~/.claudescope/backups/` created a new plaintext-secret store outside every
+Revision 2's `~/.claudesight/backups/` created a new plaintext-secret store outside every
 existing exclusion, with a three-policy retention GC and no mode specified — with `umask
 022` that yields world-readable copies of `settings.json`'s `env` block and
 `~/.claude.json`'s `oauthAccount`.
@@ -657,7 +654,7 @@ domain-accuracy, product). Material changes:
 
 **Revision 6 — 2026-09-14.** Scope narrowed to macOS. The platform-dependent paths — the
 Trash mechanism and filesystem case folding — had only ever executed on darwin, and the
-Linux XDG trash branch had never run outside the test suite. `bin/claudescope.js` now
+Linux XDG trash branch had never run outside the test suite. `bin/claudesight.js` now
 refuses to start elsewhere; the directory-move implementation survives as the `folder`
 mechanism, named for what it is. Case folding in `writability.js` is unconditional: it
 only ever makes more paths match a protected prefix, so it errs toward refusing a write
@@ -698,11 +695,15 @@ real-machine verification:
 
 **Revision 7 — 2026-09-15.** Releasing automated, and the published name settled.
 
-20. **§5 the package is scoped.** npm refuses the bare name `claudescope`, judging it too
-    similar to an unrelated `claude-scope`. This was not visible in advance: the registry
-    returns 404 for the name, and 404 means unregistered, not available — the two are only
-    distinguished by attempting a publish. The binary is still `claudescope`; nothing but
-    the package identifier changed.
+20. **Renamed to `claudesight`; the previous name was never obtainable.** npm refuses
+    `claudescope`, judging it too similar to an existing `claude-scope`. The check that
+    had been run was `npm view claudescope`, which returned 404 and was read as "free";
+    404 means unregistered, which is a weaker claim than available. npm normalises a name
+    by stripping `-`, `_` and `.` and lowercasing before comparing, so `claude-scope` and
+    `claudescope` are the same name to the registry. That rule is mechanical and checkable
+    in advance — `scripts/check-name.mjs` does it, and reproduces the rejection. It was
+    briefly published as `@andrewpoolejames/claudescope`, since a scope sidesteps the
+    similarity check. The project was renamed rather than keep a scope nobody would type.
 21. **Releasing is a push to main.** The version is derived from commit subjects since the
     last `v*` tag by `scripts/release-version.js` rather than typed by hand, because the
     manual step is the one that gets skipped and skipping it is invisible — the repo moves
@@ -710,5 +711,5 @@ real-machine verification:
     Below 1.0.0 a breaking change is a minor bump: declaring stability is a decision, not a
     consequence of punctuation.
 
-Open: none blocking. The name is settled: `claudescope` as the command and the repository,
-`@andrewpoolejames/claudescope` on npm.
+Open: none blocking. The name is settled: `claudesight` throughout — the command, the
+repository and the npm package, verified obtainable before it was adopted.

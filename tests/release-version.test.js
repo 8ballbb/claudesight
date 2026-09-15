@@ -66,7 +66,7 @@ describe('applying the bump', () => {
 describe('deciding whether anything shipped', () => {
   it('counts the code and the binary', () => {
     expect(shipsChanged(['src/server/api.js'])).toBe(true)
-    expect(shipsChanged(['bin/claudescope.js'])).toBe(true)
+    expect(shipsChanged(['bin/claudesight.js'])).toBe(true)
   })
 
   it('counts a lockfile change, because React is compiled into the bundle', () => {

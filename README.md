@@ -1,4 +1,4 @@
-# claudescope
+# claudesight
 
 See and edit every Claude Code artifact on your machine — globally and per project.
 
@@ -6,7 +6,7 @@ See and edit every Claude Code artifact on your machine — globally and per pro
 folding — have only ever run on macOS, so the app refuses to start elsewhere rather than
 half-working on files you rely on. Linux support is welcome; see `CONTRIBUTING.md`.
 
-    npx @andrewpoolejames/claudescope@latest
+    npx claudesight@latest
 
 Opens a local web UI at `http://127.0.0.1:7717/`. Stop it with Ctrl-C.
 
@@ -15,21 +15,17 @@ the port is fixed rather than ephemeral so the URL survives a restart and can be
 bookmarked. If the port is taken the server says so and names an alternative instead of
 quietly moving.
 
-The package is scoped because npm refuses the bare name `claudescope`: it is judged too
-similar to an unrelated package called `claude-scope`. The command it installs is still
-`claudescope`.
-
 `npx` keeps a copy once it has run, so dropping the `@latest` may keep serving the
 version you first ran. The `@latest` above forces it to check.
 
 To run the current `main` instead of the last published version:
 
-    npx github:8ballbb/claudescope
+    npx github:8ballbb/claudesight
 
 Or from a clone, which is what you want if you intend to change anything:
 
-    git clone https://github.com/8ballbb/claudescope
-    cd claudescope
+    git clone https://github.com/8ballbb/claudesight
+    cd claudesight
     npm install        # also builds the UI
     npm start
 
@@ -83,7 +79,7 @@ appears inside the confirmation for any file Claude Code executes as shell.
 ## Versions
 
 Editable files can be versioned on demand with an explicit button — not on every save.
-Versions live outside your config, in `~/.claudescope/versions/`, indexed so any file's
+Versions live outside your config, in `~/.claudesight/versions/`, indexed so any file's
 history can be found and restored.
 
 **Compare** shows what restoring a version would change, before you restore it. Both
@@ -114,7 +110,7 @@ Node 20 or later, on macOS.
 
 > Screenshots use a fabricated configuration, not a real one.
 
-[![CI](https://github.com/8ballbb/claudescope/actions/workflows/ci.yml/badge.svg)](https://github.com/8ballbb/claudescope/actions/workflows/ci.yml)
+[![CI](https://github.com/8ballbb/claudesight/actions/workflows/ci.yml/badge.svg)](https://github.com/8ballbb/claudesight/actions/workflows/ci.yml)
 
 ## Contributing
 
@@ -123,7 +119,7 @@ threat model and how to report a vulnerability privately.
 
 ## Design
 
-`docs/superpowers/specs/2026-09-11-claudescope-design.md` is the authority on behaviour
+`docs/superpowers/specs/2026-09-11-claudesight-design.md` is the authority on behaviour
 and is kept current with revision notes. `CLAUDE.md` records the invariants that are easy
 to break and expensive to notice. Plans under `docs/superpowers/plans/completed/` are
 spent history, not guidance.

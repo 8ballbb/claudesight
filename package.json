@@ -1,5 +1,5 @@
 {
-  "name": "@andrewpoolejames/claudescope",
+  "name": "claudesight",
   "version": "0.1.0",
   "description": "See and edit every Claude Code artifact on your machine \u2014 global and per project. macOS, local only.",
   "keywords": [
@@ -14,19 +14,19 @@
     "dotfiles",
     "cli"
   ],
-  "homepage": "https://github.com/8ballbb/claudescope#readme",
+  "homepage": "https://github.com/8ballbb/claudesight#readme",
   "bugs": {
-    "url": "https://github.com/8ballbb/claudescope/issues"
+    "url": "https://github.com/8ballbb/claudesight/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/8ballbb/claudescope.git"
+    "url": "git+https://github.com/8ballbb/claudesight.git"
   },
   "author": "Andrew Poole",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "claudescope": "./bin/claudescope.js"
+    "claudesight": "./bin/claudesight.js"
   },
   "files": [
     "bin",
@@ -38,7 +38,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node bin/claudescope.js",
+    "start": "node bin/claudesight.js",
     "dev": "vite",
     "build": "vite build",
     "prepack": "npm run build",

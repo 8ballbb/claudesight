@@ -214,7 +214,7 @@ describe('deletion goes to the trash, not oblivion', () => {
   it('leaves no staging directory behind', () => {
     const r = createVersion(target, null, home)
     deleteVersion(target, r.version.id, home, 'folder')
-    const staging = path.join(home, '.claudescope', '.trashing')
+    const staging = path.join(home, '.claudesight', '.trashing')
     expect(fs.existsSync(staging) ? fs.readdirSync(staging) : []).toEqual([])
   })
 })

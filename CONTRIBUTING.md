@@ -1,7 +1,7 @@
 # Contributing
 
-    git clone https://github.com/8ballbb/claudescope
-    cd claudescope
+    git clone https://github.com/8ballbb/claudesight
+    cd claudesight
     npm install        # also builds the UI
     npm test           # 293 tests
     npm start          # http://127.0.0.1:7717/ — Ctrl-C to stop
@@ -44,7 +44,7 @@ XDG trash implementation shipped for months without ever executing outside the t
 that is the same class of claim as a bare zero.
 
 If you add Linux or Windows: start from the `folder` mechanism in `src/server/trash.js`,
-relax the guard in `bin/claudescope.js`, **and add CI that runs the suite on that platform
+relax the guard in `bin/claudesight.js`, **and add CI that runs the suite on that platform
 in the same change.** A platform without CI is a claim nobody has checked.
 
 ## CI
@@ -85,6 +85,14 @@ The job commits the new version, the lockfile and a `CHANGELOG.md` entry back to
 tags it, publishes with npm provenance, and opens a GitHub release. It publishes **after**
 everything reversible has already succeeded locally, because the publish is the only step
 that cannot be undone.
+
+## Naming
+
+`node scripts/check-name.mjs <name>` before adopting any npm name. A 404 from
+`npm view` means unregistered, which is weaker than available: npm also refuses a name
+whose punctuation-stripped form collides with an existing package. This project was named
+`claudescope` on the strength of a 404 and could not be published, because `claude-scope`
+already existed. The script reproduces that rejection, so it is testable rather than folklore.
 
 ## Pull requests
 

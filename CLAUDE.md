@@ -1,9 +1,9 @@
-# claudescope
+# claudesight
 
 A local web UI that resolves every Claude Code artifact on the machine and lets you edit
 the ones that are safe to edit. Node 20+ / ESM, Vite + React + CSS modules, Vitest.
 
-**macOS only, on purpose.** `bin/claudescope.js` refuses to start on any other platform.
+**macOS only, on purpose.** `bin/claudesight.js` refuses to start on any other platform.
 There was Linux code here — an XDG trash implementation — that had never run outside the
 test suite, and untested branches presented as platform support are the same class of
 claim as a bare zero. It survives as the `folder` mechanism in `trash.js`, named for what
@@ -11,7 +11,7 @@ it does, used by tests so deleting does not litter the real Trash, and the obvio
 starting point if Linux support is ever added. If you add a platform, add CI for it in
 the same change.
 
-The spec at `docs/superpowers/specs/2026-09-11-claudescope-design.md` is the authority on
+The spec at `docs/superpowers/specs/2026-09-11-claudesight-design.md` is the authority on
 behaviour. When code and spec disagree, one of them is a bug — decide which and fix it,
 then record the decision in the spec's revision history.
 
@@ -129,7 +129,7 @@ within minutes; a published version can never be changed, only superseded; and t
 `audit` job blocks releases, so a high advisory in a dev dependency stops shipping
 entirely. The lockfile counts as shipping because React is compiled into the UI bundle.
 
-**Build before serving.** `bin/claudescope.js` serves `dist/`. Source edits are invisible
+**Build before serving.** `bin/claudesight.js` serves `dist/`. Source edits are invisible
 until `npm run build`.
 
 ## Not built yet
