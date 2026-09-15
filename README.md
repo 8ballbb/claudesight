@@ -6,7 +6,7 @@ See and edit every Claude Code artifact on your machine — globally and per pro
 folding — have only ever run on macOS, so the app refuses to start elsewhere rather than
 half-working on files you rely on. Linux support is welcome; see `CONTRIBUTING.md`.
 
-    npx claudescope@latest
+    npx @andrewpoolejames/claudescope@latest
 
 Opens a local web UI at `http://127.0.0.1:7717/`. Stop it with Ctrl-C.
 
@@ -15,7 +15,11 @@ the port is fixed rather than ephemeral so the URL survives a restart and can be
 bookmarked. If the port is taken the server says so and names an alternative instead of
 quietly moving.
 
-`npx` keeps a copy once it has run, so plain `npx claudescope` may keep serving the
+The package is scoped because npm refuses the bare name `claudescope`: it is judged too
+similar to an unrelated package called `claude-scope`. The command it installs is still
+`claudescope`.
+
+`npx` keeps a copy once it has run, so dropping the `@latest` may keep serving the
 version you first ran. The `@latest` above forces it to check.
 
 To run the current `main` instead of the last published version:

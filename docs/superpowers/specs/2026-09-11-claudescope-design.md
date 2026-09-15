@@ -164,15 +164,17 @@ no parser exists. Revision 2's per-kind `rare-kinds/` fixture is deleted — it 
 ## 5. Architecture
 
 Single Node process, run with `npx`, API + SPA on `127.0.0.1`. Chosen for needing no
-install rights, code-signing or MDM exception. Today that is
-`npx github:8ballbb/claudescope`; `npx claudescope` becomes true if the package is ever
-published, and the name is free on npm for that.
+install rights, code-signing or MDM exception. Published as
+`npx @andrewpoolejames/claudescope`, or `npx github:8ballbb/claudescope` to run the
+current main. The package is scoped because npm rejects the bare name `claudescope` as
+too similar to an unrelated `claude-scope`; a 404 on the registry means unregistered,
+not available, and the two differ only at publish time.
 
 **Stack decided** (revision 2 left it open; that is where side projects stall): Vite +
 React + plain CSS modules. No component library, no state manager. ~7 screens.
 
 ```
-npx claudescope
+claudescope
   ├─ Security      Origin/Host/JSON gate, CSP, value-shape write gate       (§9)
   ├─ RootResolver  CLAUDE_CONFIG_DIR → $HOME/.claude                        (§6.1)
   ├─ ScopeRegistry reconciles registry ⊕ sessions ⊕ default bounded scan    (§6.2)
@@ -694,4 +696,19 @@ real-machine verification:
     "a naive scan double-counts everything" and then quoted the double-counted figure in
     the same breath. Corrected in §1, §11 and in the Phase 1 plan.
 
-Open: none blocking. Name remains a working title.
+**Revision 7 — 2026-09-15.** Releasing automated, and the published name settled.
+
+20. **§5 the package is scoped.** npm refuses the bare name `claudescope`, judging it too
+    similar to an unrelated `claude-scope`. This was not visible in advance: the registry
+    returns 404 for the name, and 404 means unregistered, not available — the two are only
+    distinguished by attempting a publish. The binary is still `claudescope`; nothing but
+    the package identifier changed.
+21. **Releasing is a push to main.** The version is derived from commit subjects since the
+    last `v*` tag by `scripts/release-version.js` rather than typed by hand, because the
+    manual step is the one that gets skipped and skipping it is invisible — the repo moves
+    on and the registry does not. A push touching only docs, tests or CI publishes nothing.
+    Below 1.0.0 a breaking change is a minor bump: declaring stability is a decision, not a
+    consequence of punctuation.
+
+Open: none blocking. The name is settled: `claudescope` as the command and the repository,
+`@andrewpoolejames/claudescope` on npm.

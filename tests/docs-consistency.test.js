@@ -51,7 +51,7 @@ describe('the docs describe this project, accurately', () => {
     // The README's first instruction is an npm install of this package. If the
     // package were ever renamed, this is the line that would start lying.
     expect(readme).toContain(`npx ${pkg.name}@latest`)
-    expect(Object.keys(pkg.bin)).toContain(pkg.name)
+    expect(Object.keys(pkg.bin)).toContain(pkg.name.replace(/^@[^/]+\//, ''))
   })
 
   it('no longer claims the package is unpublished', () => {

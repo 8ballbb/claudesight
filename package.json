@@ -1,5 +1,5 @@
 {
-  "name": "claudescope",
+  "name": "@andrewpoolejames/claudescope",
   "version": "0.1.0",
   "description": "See and edit every Claude Code artifact on your machine \u2014 global and per project. macOS, local only.",
   "keywords": [
