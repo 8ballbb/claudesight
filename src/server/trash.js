@@ -90,7 +90,16 @@ export function moveToTrash(target, home = os.homedir(), forceMechanism = null) 
 
   try {
     if (mechanism === 'macos-cli') {
-      execFileSync(MACOS_TRASH, ['--', target], { stdio: 'ignore', timeout: 15000 })
+      // No `--` separator: /usr/bin/trash does not implement it, and treats it
+      // as a filename to delete. It then trashes the real target anyway and
+      // exits 5 for the missing "--", so every deletion reported failure while
+      // having succeeded — leaving a copy in the Trash and the version still
+      // listed. An absolute path is required instead, so a leading dash can
+      // never be read as a flag.
+      if (!path.isAbsolute(target)) {
+        return { ok: false, error: 'not-absolute', reason: 'Refusing to trash a relative path.' }
+      }
+      execFileSync(MACOS_TRASH, [target], { stdio: 'ignore', timeout: 15000 })
       // ~/.Trash is not listable under macOS privacy protection, so the
       // source being gone is the confirmation available to us.
       if (fs.existsSync(target)) {

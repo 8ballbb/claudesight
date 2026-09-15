@@ -60,6 +60,14 @@ action adds this line", for both the save preview and the version compare; only 
 differs. The restore diff was once computed backwards and corrected in the view, which
 survived exactly until the CSS was updated without the JSX. Never reintroduce a sign flip.
 
+**The Trash path is the only one that runs in production, and was the only one untested.**
+Every version test forces the `folder` mechanism so the suite does not litter a real Trash —
+which meant the macOS branch shipped broken. `/usr/bin/trash` does not implement a `--`
+separator: it treats it as a filename, trashes the real target anyway, and exits 5. Deleting
+therefore reported failure on every attempt while having succeeded, leaving a copy in the
+Trash and the version still listed. If you touch trash.js, run the darwin tests in
+`tests/platform.test.js`, which exercise it for real.
+
 **Deletion moves to the Trash.** `trash.js` refuses rather than unlinking when it cannot
 identify a trash mechanism. Never add an `fs.unlink` fallback.
 
