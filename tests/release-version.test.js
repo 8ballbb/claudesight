@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  bumpFrom, isBreaking, nextVersion, plan, releaseNotes, shipsChanged, typeOf,
+  bumpFrom, isBreaking, manifestShips, nextVersion, plan, releaseNotes, shipsChanged, typeOf,
 } from '../scripts/release-version.js'
 
 const c = (subject, body = '') => ({ subject, body })
@@ -79,6 +79,74 @@ describe('deciding whether anything shipped', () => {
     expect(shipsChanged(['tests/linediff.test.js'])).toBe(false)
     expect(shipsChanged(['.github/workflows/ci.yml'])).toBe(false)
     expect(shipsChanged(['scripts/release-version.js'])).toBe(false)
+  })
+})
+
+describe('judging a package.json change by what it actually alters', () => {
+  const base = {
+    name: 'claudesight', version: '0.2.0',
+    dependencies: { react: '^19.3.0' },
+    devDependencies: { eslint: '^10.10.0', vite: '^8.3.0', vitest: '^5.0.0' },
+  }
+  const with_ = (patch) => ({ ...base, ...patch })
+
+  it('ships when a runtime dependency moves', () => {
+    expect(manifestShips(base, with_({ dependencies: { react: '^19.4.0' } }))).toBe(true)
+  })
+
+  it('does NOT ship when only the linter moves', () => {
+    // This is the whole point: Dependabot bumping eslint must not publish a
+    // version to people who will receive exactly what they already have.
+    expect(manifestShips(base, with_({
+      devDependencies: { ...base.devDependencies, eslint: '^10.11.0' },
+    }))).toBe(false)
+  })
+
+  it('DOES ship when vite moves, because vite builds the bundle', () => {
+    // vite is a devDependency, but the bundle users download is its output.
+    expect(manifestShips(base, with_({
+      devDependencies: { ...base.devDependencies, vite: '^8.4.0' },
+    }))).toBe(true)
+  })
+
+  it('ships for an unrecognised devDependency, rather than guessing', () => {
+    expect(manifestShips(base, with_({
+      devDependencies: { ...base.devDependencies, 'some-new-tool': '^1.0.0' },
+    }))).toBe(true)
+  })
+
+  it('ships when bin, files or engines change', () => {
+    expect(manifestShips(base, with_({ bin: { claudesight: 'bin/x.js' } }))).toBe(true)
+    expect(manifestShips(base, with_({ engines: { node: '>=22' } }))).toBe(true)
+  })
+
+  it('ignores the version field, which the release writes itself', () => {
+    expect(manifestShips(base, with_({ version: '0.3.0' }))).toBe(false)
+  })
+
+  it('assumes it ships when it cannot compare', () => {
+    expect(manifestShips(null, base)).toBe(true)
+  })
+})
+
+describe('what counts as a shipping change', () => {
+  const manifest = {
+    before: { devDependencies: { eslint: '^10.10.0' } },
+    after: { devDependencies: { eslint: '^10.11.0' } },
+  }
+
+  it('lets a linter-only bump through without releasing', () => {
+    expect(shipsChanged(['package.json', 'package-lock.json'], manifest)).toBe(false)
+  })
+
+  it('still releases when source changed in the same push', () => {
+    expect(shipsChanged(['package.json', 'package-lock.json', 'src/a.js'], manifest)).toBe(true)
+  })
+
+  it('releases on a lockfile-only change, which package.json cannot explain', () => {
+    // A transitive bump. Reading the tree to find out whether it reaches the
+    // bundle is not worth it; assume it does.
+    expect(shipsChanged(['package-lock.json'], {})).toBe(true)
   })
 })
 

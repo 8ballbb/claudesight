@@ -19,13 +19,54 @@ import path from 'node:path'
 const SHIPPING = [
   (f) => f.startsWith('bin/'),
   (f) => f.startsWith('src/'),
-  (f) => f === 'package.json',
-  (f) => f === 'package-lock.json',
   (f) => f === 'vite.config.js',
 ]
 
-export function shipsChanged(files) {
-  return files.some((f) => SHIPPING.some((match) => match(f)))
+// devDependencies that cannot reach the published tarball. Note what is NOT
+// here: vite and its react plugin are devDependencies that BUILD dist/, so
+// bumping them genuinely changes what users receive. Anything unrecognised is
+// treated as shipping — failing toward publishing a no-op version is cheaper
+// than failing toward withholding a real fix.
+const NEVER_IN_THE_TARBALL = [
+  /^eslint$/, /^@eslint\//, /^eslint-plugin-/, /^eslint-config-/, /^globals$/,
+  /^vitest$/, /^@vitest\//, /^jsdom$/, /^happy-dom$/, /^@testing-library\//,
+]
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+
+/**
+ * Does a package.json change alter what gets published? `version` is excluded
+ * because the release itself writes it, and devDependencies are judged by name.
+ */
+export function manifestShips(before, after) {
+  if (!before || !after) return true // cannot compare — assume it ships
+
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (key === 'devDependencies' || key === 'version') continue
+    if (!same(before[key], after[key])) return true
+  }
+
+  const dev = (o) => o.devDependencies ?? {}
+  for (const name of new Set([...Object.keys(dev(before)), ...Object.keys(dev(after))])) {
+    if (dev(before)[name] === dev(after)[name]) continue
+    if (!NEVER_IN_THE_TARBALL.some((re) => re.test(name))) return true
+  }
+  return false
+}
+
+export function shipsChanged(files, manifest = {}) {
+  const others = files.filter((f) => f !== 'package.json' && f !== 'package-lock.json')
+  if (others.some((f) => SHIPPING.some((match) => match(f)))) return true
+
+  // package.json is the authority when it moved: it says which dependency
+  // changed, which the lockfile alone does not.
+  if (files.includes('package.json')) return manifestShips(manifest.before, manifest.after)
+
+  // Lockfile alone means a transitive bump. Working out whether it reaches the
+  // bundle would mean walking the dependency tree; assume it does.
+  if (files.includes('package-lock.json')) return true
+
+  return false
 }
 
 const CONVENTIONAL = /^(?<type>[a-z]+)(?:\((?<scope>[^)]*)\))?(?<breaking>!)?:/
@@ -110,7 +151,7 @@ export function readCommits(range) {
   })
 }
 
-export function plan({ current, lastTag, commits, files, forced, tags = [] }) {
+export function plan({ current, lastTag, commits, files, forced, tags = [], manifest = {} }) {
   if (!lastTag) {
     // Nothing has ever been released. Ship what package.json already declares
     // instead of inventing a number — 0.1.0 is the version the docs quote.
@@ -121,7 +162,7 @@ export function plan({ current, lastTag, commits, files, forced, tags = [] }) {
   // A forced bump is not an accident — it is someone opening the Actions tab
   // and choosing a size, which is how you re-publish after a failed publish or
   // cut a version deliberately. Let it through.
-  if (!forced && !shipsChanged(files)) {
+  if (!forced && !shipsChanged(files, manifest)) {
     return { release: false, reason: 'no change to anything the package ships' }
   }
   const bump = forced || bumpFrom(commits)
@@ -162,8 +203,19 @@ function main() {
   let tags
   try { tags = git('tag', '--list', 'v[0-9]*').split('\n').filter(Boolean) } catch { tags = [] }
 
+  // The manifest as it was at the last release, to compare against now.
+  let manifest = {}
+  if (lastTag) {
+    try {
+      manifest = {
+        before: JSON.parse(git('show', `${lastTag}:package.json`)),
+        after: JSON.parse(fs.readFileSync('package.json', 'utf8')),
+      }
+    } catch { manifest = {} } // unreadable either side — shipsChanged assumes it ships
+  }
+
   const forced = process.env.FORCE_BUMP || null
-  const result = plan({ current, lastTag, commits, files, forced, tags })
+  const result = plan({ current, lastTag, commits, files, forced, tags, manifest })
 
   if (!result.release) {
     process.stdout.write(`release=no\nreason=${result.reason}\n`)

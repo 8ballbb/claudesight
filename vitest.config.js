@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     root: '.',
     environment: 'node',
-    include: ['tests/**/*.test.js'],
+    // .jsx too: component tests mount real components, and those test files
+    // carry JSX themselves.
+    include: ['tests/**/*.test.js', 'tests/**/*.test.jsx'],
   },
 })

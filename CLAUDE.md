@@ -95,6 +95,12 @@ guarded by a vacuous test — a fixture that did not discriminate, or an asserti
 either way. Before claiming a fix is guarded, revert the production change and watch the test
 go red.
 
+**The UI is mounted in tests now, but only partly.** `tests/inventory-render.test.jsx`
+runs under jsdom with @testing-library/react and asserts the five states reach the screen
+as five different sentences — the one invariant, checked where it actually matters. Every
+other UI test still reads JSX as text and would pass if the component stopped rendering.
+Treat a green suite as covering Inventory's states and nothing else in the UI.
+
 **Render it in a browser.** Several defects reached "all tests pass" and were caught only by
 looking: a plugin row that hung on `EISDIR`, a theme transition that left the page painted in
 the previous palette, a project panel drawn below the fold so clicking appeared to do nothing.
@@ -119,6 +125,15 @@ the file is worse than `null` and a sentence saying the parser did not say.
 ``${open ? s.split : ''}`` resolving to `window.open` — always truthy, no lint error, no
 build error, no console error. The layout was simply wrong forever. When you remove a
 variable, grep for its bare name, not just its declaration.
+
+**A devDependency bump does not publish.** `shipsChanged` compares the package.json at
+the last tag against the current one rather than treating any package.json change as
+shipping. Runtime dependencies, `bin`, `files`, `engines` and friends ship; the linter and
+the test runner do not. Note what is deliberately NOT exempt: vite and its react plugin
+are devDependencies that BUILD `dist/`, so bumping them genuinely changes what users
+receive. An unrecognised dependency is assumed to ship — publishing a no-op version is
+cheaper than withholding a real fix. A lockfile that moves without package.json is a
+transitive bump and also assumed to ship.
 
 **A push to main publishes to npm.** There is no separate release step and no manual
 version bump. `scripts/release-version.js` derives the version from commit subjects since
