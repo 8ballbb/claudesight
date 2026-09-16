@@ -110,7 +110,7 @@ export function readCommits(range) {
   })
 }
 
-export function plan({ current, lastTag, commits, files, forced }) {
+export function plan({ current, lastTag, commits, files, forced, tags = [] }) {
   if (!lastTag) {
     // Nothing has ever been released. Ship what package.json already declares
     // instead of inventing a number — 0.1.0 is the version the docs quote.
@@ -125,7 +125,19 @@ export function plan({ current, lastTag, commits, files, forced }) {
     return { release: false, reason: 'no change to anything the package ships' }
   }
   const bump = forced || bumpFrom(commits)
-  return { release: true, version: nextVersion(current, bump), bump, commits }
+  const version = nextVersion(current, bump)
+
+  // A push can produce more than one workflow run, and main runs queue rather
+  // than cancel, so a second run can arrive after the first has already
+  // published and pushed the tag. It checks out the same commit, so the new
+  // tag is not an ancestor and `git describe` cannot see it — it recomputes
+  // the same version and dies at `git tag` with "already exists". Releasing
+  // has to be idempotent: if the tag is here, the work is done.
+  if (tags.includes(`v${version}`)) {
+    return { release: false, reason: `v${version} is already tagged — another run released it` }
+  }
+
+  return { release: true, version, bump, commits }
 }
 
 function main() {
@@ -145,8 +157,13 @@ function main() {
     ? git('diff', '--name-only', `${lastTag}..HEAD`).split('\n').filter(Boolean)
     : []
 
+  // fetch-depth: 0 means every tag is present, including one a concurrent
+  // run pushed moments ago.
+  let tags = []
+  try { tags = git('tag', '--list', 'v[0-9]*').split('\n').filter(Boolean) } catch { tags = [] }
+
   const forced = process.env.FORCE_BUMP || null
-  const result = plan({ current, lastTag, commits, files, forced })
+  const result = plan({ current, lastTag, commits, files, forced, tags })
 
   if (!result.release) {
     process.stdout.write(`release=no\nreason=${result.reason}\n`)

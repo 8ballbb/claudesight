@@ -116,6 +116,20 @@ describe('the release decision', () => {
     expect(plan({ ...base, commits: [], forced: 'major' }).release).toBe(false)
   })
 
+  it('does nothing when the version it computed is already tagged', () => {
+    // Two runs for one push: the second recomputes the same version because
+    // the new tag is not an ancestor of the commit it checked out. Without
+    // this it dies at `git tag` with "already exists".
+    const r = plan({ ...base, commits: [c('feat: a thing')], tags: ['v0.1.0', 'v0.2.0'] })
+    expect(r.release).toBe(false)
+    expect(r.reason).toMatch(/already tagged/)
+  })
+
+  it('still releases when the tag list holds only older versions', () => {
+    const r = plan({ ...base, commits: [c('feat: a thing')], tags: ['v0.1.0'] })
+    expect(r).toMatchObject({ release: true, version: '0.2.0' })
+  })
+
   it('honours a forced bump over the derived one', () => {
     const r = plan({ ...base, commits: [c('fix: small')], forced: 'minor' })
     expect(r.version).toBe('0.2.0')
