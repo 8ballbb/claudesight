@@ -1,0 +1,23 @@
+name: diagnose
+on: pull_request
+jobs:
+  probe:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: '22', cache: npm }
+      - run: |
+          echo "--- lockfile as the runner sees it ---"
+          node -e "const l=require('./package-lock.json');console.log('eslint:',l.packages['node_modules/eslint']?.version,'| entries:',Object.keys(l.packages).length)"
+          echo "--- npm config that could omit packages ---"
+          npm config get omit; npm config get production; echo "NODE_ENV=[$NODE_ENV]"
+          npm config list | head -20
+      - run: npm ci
+      - run: |
+          echo "--- what actually landed ---"
+          npm ls eslint || true
+          ls -l node_modules/.bin/eslint || echo "NO local eslint binary"
+          echo "--- what 'eslint' resolves to on PATH ---"
+          which -a eslint || true
+          npx eslint --version || true
