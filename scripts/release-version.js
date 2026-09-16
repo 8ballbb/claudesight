@@ -130,7 +130,9 @@ export function plan({ current, lastTag, commits, files, forced }) {
 
 function main() {
   const current = JSON.parse(fs.readFileSync('package.json', 'utf8')).version
-  let lastTag = null
+  // No initialiser: both branches assign, and a dead store here is exactly
+  // what ESLint 10 started flagging.
+  let lastTag
   try {
     lastTag = git('describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*')
   } catch {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Inventory, { Notices } from './Inventory.jsx'
 import Editor from './Editor.jsx'
 import s from './app.module.css'

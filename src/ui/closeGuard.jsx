@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import s from './app.module.css'
 
 // Every way of leaving an open artifact used to discard unsaved edits without

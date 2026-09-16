@@ -144,7 +144,10 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
     lockFd = claimLock()
   } catch (err) {
     if (err.code !== 'EEXIST') throw err
-    let stale = false
+    // Assigned on both paths below; the old `= false` initialiser was dead.
+    // Either way an unset value is falsy, so the lock is left alone — the
+    // safe direction for this branch.
+    let stale
     try {
       const held = JSON.parse(fs.readFileSync(lock, 'utf8'))
       const ageMs = Date.now() - (held.at ?? 0)

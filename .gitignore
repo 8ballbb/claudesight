@@ -3,3 +3,4 @@ dist/
 .DS_Store
 *.atlas-*.bak
 release-notes.md
+.lint-fixture/

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import { useCallback, useState } from 'react'
 import s from './app.module.css'
 
 // A reader can fail four distinguishable ways, and the whole point of this

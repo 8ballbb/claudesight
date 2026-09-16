@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Editor from './Editor.jsx'
 import Inventory, { Notices } from './Inventory.jsx'
 import Projects from './Projects.jsx'
