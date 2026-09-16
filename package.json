@@ -1,7 +1,7 @@
 {
   "name": "claudesight",
   "version": "0.1.0",
-  "description": "See and edit every Claude Code artifact on your machine \u2014 global and per project. macOS, local only.",
+  "description": "See and edit every Claude Code artifact on your machine — global and per project. macOS, local only.",
   "keywords": [
     "claude",
     "claude-code",
@@ -26,7 +26,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "claudesight": "./bin/claudesight.js"
+    "claudesight": "bin/claudesight.js"
   },
   "files": [
     "bin",
