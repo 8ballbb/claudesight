@@ -1,4 +1,8 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
+//
+// happy-dom, not jsdom: jsdom pulls in undici, which calls
+// webidl.util.markAsUncloneable — absent on Node 20, so the whole worker
+// fails to start there while passing on Node 22. The engines floor is 20.
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import Inventory, { Notices } from '../src/ui/Inventory.jsx'
