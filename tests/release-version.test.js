@@ -105,6 +105,17 @@ describe('the release decision', () => {
     expect(r).toMatchObject({ release: true, version: '0.1.1', bump: 'patch' })
   })
 
+  it('lets a forced bump through the ships-changed gate', () => {
+    // Choosing a bump by hand in the Actions tab is deliberate; the gate is
+    // there to catch accidents, and this is not one.
+    const r = plan({ ...base, commits: [c('docs: only prose')], files: ['README.md'], forced: 'patch' })
+    expect(r).toMatchObject({ release: true, version: '0.1.1', bump: 'patch' })
+  })
+
+  it('still refuses a forced bump when there are no commits at all', () => {
+    expect(plan({ ...base, commits: [], forced: 'major' }).release).toBe(false)
+  })
+
   it('honours a forced bump over the derived one', () => {
     const r = plan({ ...base, commits: [c('fix: small')], forced: 'minor' })
     expect(r.version).toBe('0.2.0')

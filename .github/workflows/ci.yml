@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -80,7 +80,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -114,11 +114,14 @@ jobs:
           # since the last one. A shallow clone has neither.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
+
+      # Node 22 ships npm 10.9.8; OIDC trusted publishing needs 11.5.1+.
+      - run: npm install -g npm@^11.5.2
 
       - run: npm ci
 
@@ -179,10 +182,12 @@ jobs:
           git commit -m "chore(release): v$VERSION"
           git tag -a "v$VERSION" -m "v$VERSION"
 
+      # No token. npm trusts this repository, this workflow FILENAME and this
+      # environment, and accepts a short-lived OIDC credential minted per run.
+      # Renaming ci.yml or the `release` environment breaks the trust: npm
+      # fixes both at creation time and they cannot be edited afterwards.
       - name: Publish to npm
         if: steps.plan.outputs.release == 'yes'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
 
       - name: Push the release commit and its tag

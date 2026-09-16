@@ -129,6 +129,14 @@ within minutes; a published version can never be changed, only superseded; and t
 `audit` job blocks releases, so a high advisory in a dev dependency stops shipping
 entirely. The lockfile counts as shipping because React is compiled into the UI bundle.
 
+**npm trusts the workflow FILENAME. Do not rename `ci.yml`.** Publishing uses OIDC
+trusted publishing, not a token: npm holds a fixed record of the repository, the workflow
+filename `ci.yml` and the environment `release`, and grants a short-lived credential to a
+run matching all three. npm freezes those fields at creation — they cannot be edited. So
+renaming the workflow, renaming the environment, or splitting the release job into its own
+file silently breaks publishing, and the fix is to delete the trusted publisher on npmjs.com
+and create a new one. There is no `NPM_TOKEN` to fall back on.
+
 **Build before serving.** `bin/claudesight.js` serves `dist/`. Source edits are invisible
 until `npm run build`.
 

@@ -82,7 +82,14 @@ to say why. That logic has tests in `tests/release-version.test.js` — it decid
 reaches users, so it is held to the same standard as the app.
 
 The job commits the new version, the lockfile and a `CHANGELOG.md` entry back to `main`,
-tags it, publishes with npm provenance, and opens a GitHub release. It publishes **after**
+tags it, publishes with npm provenance, and opens a GitHub release. There is no publish
+token: npm trusts this repository, the workflow file `ci.yml` and the `release`
+environment, and issues a short-lived credential per run. Renaming any of those three
+breaks publishing and the trusted publisher has to be recreated on npmjs.com.
+
+To release without a qualifying commit — to re-publish after a failed publish, or to cut
+a version deliberately — run the CI workflow from the Actions tab and choose a bump. A
+forced bump skips the ships-changed gate, because choosing one by hand is not an accident. It publishes **after**
 everything reversible has already succeeded locally, because the publish is the only step
 that cannot be undone.
 

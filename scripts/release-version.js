@@ -117,7 +117,11 @@ export function plan({ current, lastTag, commits, files, forced }) {
     return { release: true, version: current, bump: 'initial', commits }
   }
   if (!commits.length) return { release: false, reason: `no commits since ${lastTag}` }
-  if (!shipsChanged(files)) {
+  // The ships-changed gate exists to stop a docs push publishing by accident.
+  // A forced bump is not an accident — it is someone opening the Actions tab
+  // and choosing a size, which is how you re-publish after a failed publish or
+  // cut a version deliberately. Let it through.
+  if (!forced && !shipsChanged(files)) {
     return { release: false, reason: 'no change to anything the package ships' }
   }
   const bump = forced || bumpFrom(commits)
