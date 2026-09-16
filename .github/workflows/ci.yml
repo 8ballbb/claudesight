@@ -36,7 +36,7 @@ jobs:
         node: ['20', '22']
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v5
         with:
@@ -79,7 +79,7 @@ jobs:
   audit:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -108,7 +108,7 @@ jobs:
       id-token: write   # sign the npm provenance attestation
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # Deriving the version means reading every tag and every commit
           # since the last one. A shallow clone has neither.
