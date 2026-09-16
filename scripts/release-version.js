@@ -159,7 +159,7 @@ function main() {
 
   // fetch-depth: 0 means every tag is present, including one a concurrent
   // run pushed moments ago.
-  let tags = []
+  let tags
   try { tags = git('tag', '--list', 'v[0-9]*').split('\n').filter(Boolean) } catch { tags = [] }
 
   const forced = process.env.FORCE_BUMP || null
