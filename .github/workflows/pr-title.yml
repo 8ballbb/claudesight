@@ -1,0 +1,50 @@
+# A squash merge uses the PULL REQUEST TITLE as the commit subject, and
+# scripts/release-version.js derives the version from commit subjects. So a
+# feature merged under the title "update the reader" is read as unconventional,
+# falls through to the patch default, and ships as 0.1.1 instead of 0.2.0 —
+# silently, with nothing in the logs to say a minor release was lost.
+#
+# This check reads the title before that can happen.
+
+name: PR title
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit, not a tag: a tag can be moved to point at new code,
+      # and this action reads pull-request context.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Exactly the types scripts/release-version.js knows how to read.
+          # feat -> minor, everything here -> patch, and `!` or a
+          # BREAKING CHANGE footer -> minor while the version is below 1.0.0.
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            ci
+            build
+            style
+            chore
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" should start lowercase, matching the rest of
+            the history — the subject becomes the changelog line verbatim.

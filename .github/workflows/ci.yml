@@ -98,6 +98,11 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: macos-latest
 
+    # Publishing is a deployment, so it gets a deployment record. This gives the
+    # run an audit trail, scopes the npm credential to this job alone, and is the
+    # hook a required reviewer would attach to if a manual gate is ever wanted.
+    environment: release
+
     permissions:
       contents: write   # push the release commit, the tag, and the GitHub release
       id-token: write   # sign the npm provenance attestation

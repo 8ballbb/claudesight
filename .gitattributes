@@ -1,0 +1,7 @@
+# CI runs on macOS only, so nothing else normalises line endings. Without this,
+# a contributor on Windows produces a diff where every line looks changed.
+* text=auto eol=lf
+
+# Screenshots are binary; never let them through the text filter.
+*.jpg binary
+*.png binary
