@@ -143,7 +143,13 @@ function useOpen(key, fallback) {
   return [open, toggle]
 }
 
-function Chips({ item }) {
+// `showWritability` is false inside an owner band. Every item in one is
+// read-only by construction — the band is defined by not being yours — and the
+// group header above already prints "0 editable · 44 read-only". Repeating the
+// same word on all 44 rows is ink with no bit of information attached, on
+// exactly the rows a plugin-heavy machine has the most of. Alarm chips still
+// render: those are facts about one row, not a restatement of the band.
+function Chips({ item, showWritability = true }) {
   const out = []
   if (item.broken) out.push(['broken', s.alarm])
   else if (item.state === 'malformed') out.push(['malformed', s.alarm])
@@ -156,8 +162,10 @@ function Chips({ item }) {
     out.push([`manifest ${item.manifestState}`, s.alarm])
   }
   if (item.enabled === false) out.push(['disabled', s.locked])
-  const cls = item.writability.class
-  out.push([CLASS_LABEL[cls] ?? cls, CLASS_CHIP[cls] ?? s.locked])
+  if (showWritability) {
+    const cls = item.writability.class
+    out.push([CLASS_LABEL[cls] ?? cls, CLASS_CHIP[cls] ?? s.locked])
+  }
   return (
     <span className={s.rowTail}>
       {out.map(([text, tone], i) => (
@@ -167,7 +175,7 @@ function Chips({ item }) {
   )
 }
 
-function Rows({ items, openId, onOpen }) {
+function Rows({ items, openId, onOpen, showWritability = true }) {
   return (
     <ul className={s.rows}>
       {items.map((item, i) => (
@@ -175,7 +183,7 @@ function Rows({ items, openId, onOpen }) {
           <span className={s.index}>{String(i + 1).padStart(2, '0')}</span>
           <button className={s.rowName} onClick={() => onOpen(item)}>{item.label}</button>
           <span className={s.rowMeta}>{meta(item)}</span>
-          <Chips item={item} />
+          <Chips item={item} showWritability={showWritability} />
         </li>
       ))}
     </ul>
@@ -185,6 +193,7 @@ function Rows({ items, openId, onOpen }) {
 // Everything starts folded. The page opens as a table of contents; what you
 // expand is remembered, so the layout you arrange is the one you come back to.
 function Band({ band, stateKey, openId, onOpen }) {
+  const mine = band.key === 'yours'
   const [open, toggle] = useOpen(stateKey, false)
   const bodyId = `band-${stateKey.replace(/[^a-z0-9]+/gi, '-')}`
   return (
@@ -195,7 +204,11 @@ function Band({ band, stateKey, openId, onOpen }) {
         <span className={s.bandCount}>{band.items.length}</span>
         {band.note && <span className={s.bandNote}>{band.note}</span>}
       </button>
-      {open && <div id={bodyId}><Rows items={band.items} openId={openId} onOpen={onOpen} /></div>}
+      {open && (
+        <div id={bodyId}>
+          <Rows items={band.items} openId={openId} onOpen={onOpen} showWritability={mine} />
+        </div>
+      )}
     </div>
   )
 }

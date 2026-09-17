@@ -22,8 +22,10 @@ const group = (kind, items) => ({ kind, label: kind, items })
 // The shape the server actually builds — checked against buildInventory
 // output rather than guessed, because a fixture that does not match is a test
 // that proves nothing.
+// id defaults from the label: two fixture items sharing an id are two items
+// sharing a React key, which silently renders one of them.
 const item = (over = {}) => ({
-  id: 'x', kind: 'settings', label: 'config.json', path: '/p/config.json',
+  id: over.label ?? 'x', kind: 'settings', label: 'config.json', path: '/p/config.json',
   bytes: 10, state: 'ok', cycle: false, depthExceeded: false,
   writability: { class: 'free', reason: 'User-authored configuration' },
   ...over,
@@ -62,6 +64,48 @@ describe('the five states reach the screen as different sentences', () => {
     // The distinction is the product. If any two of these ever read the same,
     // the app is lying in the exact way it exists to prevent.
     expect(new Set([absent, denied, empty]).size).toBe(3)
+  })
+})
+
+describe('writability is stated once per band, not once per row', () => {
+  const owned = (label) => item({
+    label, plugin: 'acme-tools',
+    writability: { class: 'redirect', reason: 'Owned by a plugin' },
+  })
+
+  it('does not repeat "read-only" on every row of an owner band', () => {
+    render(<Inventory inv={{ groups: [group('skill', [owned('one'), owned('two'), owned('three')])] }} />)
+    fireEvent.click(screen.getByText(/skill/i))
+    fireEvent.click(screen.getByText('acme-tools'))
+    expect(screen.getByText('one')).toBeTruthy()          // the band really is open
+    expect(screen.queryAllByText('read-only')).toHaveLength(1)
+  })
+
+  it('still says it once, on the band itself', () => {
+    render(<Inventory inv={{ groups: [group('skill', [owned('one')])] }} />)
+    fireEvent.click(screen.getByText(/skill/i))
+    expect(screen.getByText('read-only')).toBeTruthy()
+  })
+
+  it('keeps per-row chips in your own band, where the class actually varies', () => {
+    const mine = [
+      item({ label: 'notes.md', writability: { class: 'free', reason: 'yours' } }),
+      item({ label: 'hook.sh', writability: { class: 'exec', reason: 'executable' } }),
+    ]
+    render(<Inventory inv={{ groups: [group('scripts', mine)] }} />)
+    fireEvent.click(screen.getByText(/scripts/i))
+    // The group header also prints "editable", so the row chip makes two.
+    expect(screen.getAllByText('editable').length).toBeGreaterThan(1)
+    expect(screen.getByText('executable')).toBeTruthy()
+  })
+
+  it('never hides an alarm, which is a fact about one row', () => {
+    render(<Inventory inv={{ groups: [group('skill', [
+      { ...owned('bad'), broken: true },
+    ])] }} />)
+    fireEvent.click(screen.getByText(/skill/i))
+    fireEvent.click(screen.getByText('acme-tools'))
+    expect(screen.getByText('broken')).toBeTruthy()
   })
 })
 
