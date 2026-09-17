@@ -165,6 +165,10 @@ function Chips({ item, showWritability = true }) {
     out.push([`manifest ${item.manifestState}`, s.alarm])
   }
   if (item.enabled === false) out.push(['disabled', s.locked])
+  // What a hook script CAN do to a tool call, read off its own body. The
+  // wording stays in the conditional — "can" — because a text scan cannot know
+  // what the script did, only what it is able to do.
+  for (const c of item.capabilities ?? []) out.push([c.label, s.caution])
   if (showWritability) {
     const cls = item.writability.class
     out.push([CLASS_LABEL[cls] ?? cls, CLASS_CHIP[cls] ?? s.locked])

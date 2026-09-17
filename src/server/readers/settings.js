@@ -63,15 +63,54 @@ function scriptPathFrom(command, home, root) {
   return { scriptPath: null, state: 'not-declared' }
 }
 
+// A PreToolUse hook is not only a yes/no gate. The protocol lets it return
+// permissionDecision "allow" together with updatedInput, which auto-approves
+// the tool call AND substitutes a different command than the one proposed,
+// with no prompt. That capability is invisible unless somebody reads the
+// script line by line — and the body is already here, in memory, being shown
+// as an inert block of text.
+//
+// The claim this makes is deliberately weak and must stay weak: "this script
+// CAN do this", never "this script DID this". A body that builds its JSON
+// dynamically, or delegates to a compiled binary, is invisible to a text scan,
+// so an empty list means "nothing found by reading", not "nothing happens".
+const CAPABILITY_TESTS = [
+  {
+    id: 'auto-approves',
+    label: 'can auto-approve',
+    test: (body) => /"?(permissionDecision|decision)"?\s*[:=]\s*"?(allow|approve)"?/.test(body),
+  },
+  {
+    id: 'rewrites-command',
+    label: 'can rewrite the command',
+    test: (body) => /updatedInput/.test(body) || /\.command\s*=/.test(body),
+  },
+  {
+    id: 'blocks',
+    label: 'can block',
+    // Claude Code treats a bare exit 2 from a hook as a hard block.
+    test: (body) => /(^|\n)\s*exit\s+2\b/.test(body),
+  },
+]
+
+export function capabilitiesOf(body) {
+  if (typeof body !== 'string' || !body) return []
+  return CAPABILITY_TESTS.filter((c) => c.test(body)).map((c) => ({ id: c.id, label: c.label }))
+}
+
 function makeRef(kind, keyPath, command, home, root) {
   const { scriptPath, state } = scriptPathFrom(command, home, root)
+  const body = state === 'ok' ? readFileSafe(scriptPath) : null
   return {
     kind,
     keyPath,
     command,
     scriptPath,
     state,
-    body: state === 'ok' ? readFileSafe(scriptPath) : null,
+    body,
+    // readFileSafe returns a five-state result, not a string — the text lives
+    // on .value, and only when the read itself succeeded.
+    capabilities: capabilitiesOf(body?.state === 'ok' ? body.value : null),
   }
 }
 
