@@ -200,7 +200,13 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange, fr
     setBusy(true); setStatus(null)
     const r = await post('/api/versions/create', { id: item.id, label })
     setBusy(false)
-    if (r.ok) {
+    if (r.ok && r.duplicate) {
+      // Nothing was written. Saying so, and saying which version already holds
+      // these bytes, is more use than a second identical row appearing.
+      const when = new Date(r.version.at).toLocaleString()
+      const named = r.version.label ? ` ("${r.version.label}")` : ''
+      setStatus({ tone: 'good', text: `Already saved — identical to the version from ${when}${named}. Nothing written.` })
+    } else if (r.ok) {
       setLabel('')
       setStatus({ tone: 'good', text: 'Version saved.' })
       loadVersions()

@@ -15,6 +15,49 @@ beforeEach(() => {
 })
 afterEach(() => fs.rmSync(home, { recursive: true, force: true }))
 
+// createVersion now declines to write a byte-identical twin, so any test that
+// wants several versions has to change the file between them. A user does the
+// same thing; back-to-back identical snapshots were only ever scaffolding.
+let edits = 0
+const edit = () => fs.writeFileSync(target, `original\nedit ${++edits}\n`)
+
+describe('saving a version that already exists', () => {
+  it('declines to write a byte-identical twin, and says which one holds it', () => {
+    const first = createVersion(target, 'before rewrite', home)
+    const again = createVersion(target, 'second thoughts', home)
+    expect(again.ok).toBe(true)
+    expect(again.duplicate).toBe(true)
+    expect(again.version.id).toBe(first.version.id)
+    expect(again.version.label).toBe('before rewrite')
+  })
+
+  it('leaves the store with one version, not two', () => {
+    createVersion(target, 'a', home)
+    createVersion(target, 'b', home)
+    expect(listVersions(target, home)).toHaveLength(1)
+  })
+
+  it('saves normally once the content actually differs', () => {
+    createVersion(target, 'a', home)
+    fs.writeFileSync(target, 'changed\n')
+    const r = createVersion(target, 'b', home)
+    expect(r.duplicate).toBeUndefined()
+    expect(listVersions(target, home)).toHaveLength(2)
+  })
+
+  it('compares against the newest version, not any older one', () => {
+    // Save A, change to B, save B, change back to A. The newest version holds
+    // B, so saving A again is a real save even though an older twin exists.
+    createVersion(target, 'a', home)
+    fs.writeFileSync(target, 'changed\n')
+    createVersion(target, 'b', home)
+    fs.writeFileSync(target, 'original\n')
+    const r = createVersion(target, 'a again', home)
+    expect(r.duplicate).toBeUndefined()
+    expect(listVersions(target, home)).toHaveLength(3)
+  })
+})
+
 describe('createVersion', () => {
   it('snapshots what is on disk and returns its metadata', () => {
     const r = createVersion(target, 'before rewrite', home)
@@ -40,6 +83,7 @@ describe('createVersion', () => {
 
   it('gives two snapshots taken in the same millisecond distinct ids', () => {
     const a = createVersion(target, 'a', home)
+    edit()
     const b = createVersion(target, 'b', home)
     expect(a.version.id).not.toBe(b.version.id)
     expect(listVersions(target, home)).toHaveLength(2)
@@ -47,7 +91,9 @@ describe('createVersion', () => {
 
   it('trims and caps a label, and treats blank as none', () => {
     expect(createVersion(target, '   ', home).version.label).toBeNull()
+    edit()
     expect(createVersion(target, '  spaced  ', home).version.label).toBe('spaced')
+    edit()
     expect(createVersion(target, 'x'.repeat(500), home).version.label).toHaveLength(200)
   })
 })
@@ -60,6 +106,7 @@ describe('listVersions', () => {
   it('returns newest first', async () => {
     const first = createVersion(target, 'first', home)
     await new Promise((r) => setTimeout(r, 5))
+    edit()
     const second = createVersion(target, 'second', home)
     expect(listVersions(target, home).map((v) => v.id)).toEqual([second.version.id, first.version.id])
   })
@@ -72,12 +119,27 @@ describe('listVersions', () => {
 
   it('a damaged sidecar hides one version, not the whole list', () => {
     const good = createVersion(target, 'good', home)
+    edit()
     const bad = createVersion(target, 'bad', home)
     const dir = path.join(storeRoot(home), fs.readdirSync(storeRoot(home)).find((d) => d !== 'index.json'))
     fs.writeFileSync(path.join(dir, `${bad.version.id}.json`), '{ corrupt')
     const listed = listVersions(target, home)
     expect(listed).toHaveLength(1)
     expect(listed[0].id).toBe(good.version.id)
+  })
+
+  it('orders correctly even when snapshots land in the same millisecond', () => {
+    // The ids used to end in a random suffix, so within one millisecond the
+    // "newest first" sort was decided by chance. Twelve rapid saves makes that
+    // collision near-certain, and also crosses the 9->10 boundary where a
+    // naive counter would sort wrongly as a string.
+    const made = []
+    for (let i = 0; i < 12; i++) {
+      fs.writeFileSync(target, `content ${i}\n`)
+      made.push(createVersion(target, `v${i}`, home).version.id)
+    }
+    const listed = listVersions(target, home).map((v) => v.id)
+    expect(listed).toEqual([...made].reverse())
   })
 
   it('keys on the absolute path, so two roots do not collide', () => {
@@ -135,6 +197,7 @@ describe('deleteVersion', () => {
 
   it('leaves sibling versions untouched', () => {
     createVersion(target, 'keep', home)
+    edit()
     const drop = createVersion(target, 'drop', home)
     deleteVersion(target, drop.version.id, home, 'folder')
     expect(listVersions(target, home).map((v) => v.label)).toEqual(['keep'])

@@ -39,9 +39,18 @@ function dirFor(target, home) {
   return path.join(storeRoot(home), keyFor(target))
 }
 
+// Ids are sorted as strings to order the version list, so they have to be
+// monotonic. The timestamp alone is not: it has millisecond granularity, and
+// two snapshots taken inside one millisecond fell through to the random
+// suffix — which made "newest first" a coin toss for rapid saves, and made
+// listVersions()[0] an unreliable answer to "what did I save last".
+// The counter restores order within a millisecond; the random tail keeps ids
+// from colliding across processes.
+let seq = 0
 function newId() {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-  return `${stamp}-${crypto.randomBytes(3).toString('hex')}`
+  const tick = String(seq++).padStart(6, '0')
+  return `${stamp}-${tick}-${crypto.randomBytes(3).toString('hex')}`
 }
 
 export function listVersions(target, home = os.homedir()) {
@@ -74,6 +83,17 @@ export function createVersion(target, label, home = os.homedir()) {
     throw err
   }
 
+  // The hash was already being computed for the sidecar; comparing it against
+  // the newest existing version costs nothing and answers the question a
+  // defensive second click is really asking. Restore already declines to write
+  // when the content matches ({ ok: true, unchanged: true }); this is the
+  // symmetric case, which was the one place the check was never added.
+  const digest = sha(content)
+  const newest = listVersions(target, home)[0]
+  if (newest && newest.hash === digest) {
+    return { ok: true, duplicate: true, version: newest }
+  }
+
   const dir = dirFor(target, home)
   ensureDir(dir, home)
 
@@ -94,7 +114,7 @@ export function createVersion(target, label, home = os.homedir()) {
     at: new Date().toISOString(),
     label: typeof label === 'string' && label.trim() ? label.trim().slice(0, 200) : null,
     bytes: content.length,
-    hash: sha(content),
+    hash: digest,
   }
   const metaFd = fs.openSync(path.join(dir, `${id}.json`), 'wx', 0o600)
   try {
