@@ -98,6 +98,22 @@ export function capabilitiesOf(body) {
   return CAPABILITY_TESTS.filter((c) => c.test(body)).map((c) => ({ id: c.id, label: c.label }))
 }
 
+// A declared hook the reader cannot resolve to anything. It still gets a row:
+// Claude Code will act on this config, and an entry the app cannot parse is
+// exactly what it must not render as absence.
+function malformedRef(kind, keyPath, reason) {
+  return {
+    kind,
+    keyPath,
+    command: null,
+    scriptPath: null,
+    state: 'malformed',
+    reason,
+    body: null,
+    capabilities: [],
+  }
+}
+
 function makeRef(kind, keyPath, command, home, root) {
   const { scriptPath, state } = scriptPathFrom(command, home, root)
   const body = state === 'ok' ? readFileSafe(scriptPath) : null
@@ -121,12 +137,26 @@ export function extractScripts(settings, root, home = os.homedir()) {
   }
   const hooks = settings?.hooks ?? {}
   for (const [event, matchers] of Object.entries(hooks)) {
-    if (!Array.isArray(matchers)) continue
+    // A hooks block that is not an array is a declaration this reader cannot
+    // walk. Skipping it silently made a configured hook vanish from a page
+    // whose whole promise is to show what is configured.
+    if (!Array.isArray(matchers)) {
+      refs.push(malformedRef('hookScript', `hooks.${event}`, 'the value here is not a list of matchers'))
+      continue
+    }
     matchers.forEach((matcher, i) => {
       const list = Array.isArray(matcher?.hooks) ? matcher.hooks : []
+      if (!Array.isArray(matcher?.hooks)) {
+        refs.push(malformedRef('hookScript', `hooks.${event}.${i}.hooks`, 'the value here is not a list of hooks'))
+        return
+      }
       list.forEach((hook, j) => {
-        if (typeof hook?.command !== 'string') return
-        refs.push(makeRef('hookScript', `hooks.${event}.${i}.hooks.${j}.command`, hook.command, home, root))
+        const keyPath = `hooks.${event}.${i}.hooks.${j}.command`
+        if (typeof hook?.command !== 'string') {
+          refs.push(malformedRef('hookScript', keyPath, 'no command string is declared here'))
+          return
+        }
+        refs.push(makeRef('hookScript', keyPath, hook.command, home, root))
       })
     })
   }

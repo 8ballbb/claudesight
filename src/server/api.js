@@ -14,6 +14,37 @@ const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').sli
 // A project's .claude/ is structurally the global root in miniature, so the
 // same readers work against it. `root` for classification is the PROJECT
 // directory, not its .claude/, because CLAUDE.md and .mcp.json sit beside it.
+// A declared hook does not always name a script file. It may run an inline
+// command (`npx prettier --write "$f"`), or the declaration may be shaped in a
+// way the reader cannot walk at all. Both were dropped, so a hook Claude Code
+// runs on every tool call was absent from the page that exists to list what is
+// configured — the bare zero, in the app's own code.
+//
+// Rows with no script of their own take the path of the settings file that
+// declares them, because that is the file you would edit to change them.
+function scriptRow(r, declaredIn, keyPrefix = '') {
+  const inline = r.state === 'not-declared'
+  return {
+    path: r.scriptPath ?? declaredIn,
+    label: r.scriptPath ? path.basename(r.scriptPath) : lastKey(r.keyPath),
+    keyPath: keyPrefix + r.keyPath,
+    command: r.command,
+    artifactKind: r.kind,
+    state: r.state,
+    // An inline command is not broken — it runs. Only a script that was named
+    // and could not be found, or a declaration that will not parse, is.
+    broken: r.state === 'absent' || r.state === 'denied' || r.state === 'malformed',
+    inline,
+    reason: r.reason ?? (inline ? 'runs inline; names no script file' : null),
+    capabilities: r.capabilities,
+  }
+}
+
+const lastKey = (keyPath) => {
+  const parts = keyPath.split('.')
+  return parts[1] ? `${parts[0]}.${parts[1]}` : keyPath
+}
+
 export function buildProjectInventory(projectPath) {
   const table = new Map()
   const groups = []
@@ -148,14 +179,8 @@ export function buildProjectInventory(projectPath) {
     const r = readJsonSafe(path.join(dotClaude, name))
     if (r.state !== 'ok') continue
     for (const x of extractScripts(r.value, projectPath)) {
-      // Every declared script, not only the ones that resolve. A hook whose
-      // file is missing is the case worth seeing: Claude Code still runs it.
-      if (x.state === 'not-declared') continue
-      scripts.push({
-        path: x.scriptPath, label: path.basename(x.scriptPath),
-        keyPath: `${name}:${x.keyPath}`, command: x.command, artifactKind: x.kind,
-        state: x.state, broken: x.state !== 'ok',
-      })
+      // Every declared hook, including ones that resolve to no script at all.
+      scripts.push(scriptRow(x, path.join(dotClaude, name), `${name}:`))
     }
   }
   add('scripts', scripts)
@@ -241,10 +266,7 @@ export function buildInventory(root) {
   const scripts = s.result.state === 'ok' ? extractScripts(s.result.value, root) : []
   // Same rule as project scope, deliberately. Fixing one site and not the
   // other would turn a uniform silence into a scope-dependent lie.
-  add('scripts', scripts.filter((r) => r.state !== 'not-declared').map((r) => ({
-    path: r.scriptPath, label: path.basename(r.scriptPath), keyPath: r.keyPath, command: r.command,
-    artifactKind: r.kind, state: r.state, broken: r.state !== 'ok',
-  })))
+  add('scripts', scripts.map((r) => scriptRow(r, s.path)))
 
   const sk = readSkills(root)
   denied.push(...sk.denied)

@@ -109,6 +109,39 @@ describe('writability is stated once per band, not once per row', () => {
   })
 })
 
+describe('the limits of reading a hook without running it', () => {
+  const script = (over = {}) => item({
+    kind: 'hookScript', label: 'guard.sh',
+    writability: { class: 'exec', reason: 'executable' }, ...over,
+  })
+
+  it('always says what it did not check, even when every hook looks fine', () => {
+    render(<Inventory inv={{ groups: [group('scripts', [script()])] }} />)
+    fireEvent.click(screen.getByText(/scripts/i))
+    expect(screen.getByText(/Not checked: exit code, output shape/)).toBeTruthy()
+  })
+
+  it('says it whether or not a hook is broken, so a clean list cannot read as a clean bill of health', () => {
+    render(<Inventory inv={{ groups: [group('scripts', [script({ broken: true, state: 'absent' })])] }} />)
+    fireEvent.click(screen.getByText(/scripts/i))
+    expect(screen.getByText(/Nothing here is executed/)).toBeTruthy()
+  })
+
+  it('does not put it on unrelated groups', () => {
+    render(<Inventory inv={{ groups: [group('memory', [item({ label: 'CLAUDE.md' })])] }} />)
+    fireEvent.click(screen.getByText(/memory/i))
+    expect(screen.queryByText(/Not checked/)).toBeNull()
+  })
+
+  it('shows what a hook can do to a command, in the conditional', () => {
+    render(<Inventory inv={{ groups: [group('scripts', [script({
+      capabilities: [{ id: 'auto-approves', label: 'can auto-approve' }],
+    })])] }} />)
+    fireEvent.click(screen.getByText(/scripts/i))
+    expect(screen.getByText('can auto-approve')).toBeTruthy()
+  })
+})
+
 describe('what the inventory renders', () => {
   it('opens no group by default', () => {
     render(<Inventory inv={{ groups: [group('memory', [item({ label: 'CLAUDE.md' })])] }} />)

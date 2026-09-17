@@ -92,12 +92,20 @@ describe('buildProjectInventory', () => {
     expect(scripts.items[0]).toMatchObject({ label: 'deleted.sh', state: 'absent', broken: true })
   })
 
-  it('does not invent a script for a hook that runs an inline command', () => {
+  it('lists a hook that runs an inline command, without inventing a script for it', () => {
+    // This used to assert zero rows. Not inventing a script was right; hiding
+    // the hook was not — Claude Code runs it on every matching tool use, and a
+    // page that exists to list what is configured omitted it entirely. The row
+    // now exists, says it is inline, and claims no script path of its own.
     write('.claude/settings.json', JSON.stringify({
       hooks: { PreToolUse: [{ hooks: [{ command: 'echo checking' }] }] },
     }))
     const scripts = buildProjectInventory(project).groups.find((g) => g.kind === 'scripts')
-    expect(scripts.items).toHaveLength(0)
+    expect(scripts.items).toHaveLength(1)
+    expect(scripts.items[0]).toMatchObject({ inline: true, state: 'not-declared', broken: false })
+    expect(scripts.items[0].command).toBe('echo checking')
+    // The row points at the file that declares it, which is what you would edit.
+    expect(scripts.items[0].path).toBe(path.join(project, '.claude/settings.json'))
   })
 
   it('resolves a hook written against $CLAUDE_PROJECT_DIR', () => {

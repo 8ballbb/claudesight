@@ -220,6 +220,13 @@ function Band({ band, stateKey, openId, onOpen }) {
   )
 }
 
+// What reading a hook cannot tell you. This renders whether or not anything is
+// wrong, because the danger of a diagnostic is a clean list being read as a
+// clean bill of health: the worst hook failures — a wrong output shape, a
+// crash, a swallowed error that fails open — happen only when it runs, and
+// nothing here executes anything.
+const NOT_CHECKED = 'Not checked: exit code, output shape, whether the script actually runs. Nothing here is executed.'
+
 function Group({ scope, group, openId, onOpen, extras }) {
   const [open, toggle] = useOpen(`${scope}:${group.kind}`, false)
   const bands = bandsFor(group.items)
@@ -245,6 +252,7 @@ function Group({ scope, group, openId, onOpen, extras }) {
       </h2>
       {open && (
         <div id={bodyId}>
+          {group.kind === 'scripts' && <p className={s.hint}>{NOT_CHECKED}</p>}
           {extras}
           {plain
             ? <Rows items={bands[0].items} openId={openId} onOpen={onOpen} />
