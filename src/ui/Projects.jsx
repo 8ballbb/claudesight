@@ -99,6 +99,11 @@ export default function Projects({ post, guard, frozen }) {
             your prompt history and session transcripts combined. No filesystem scan.
           </p>
 
+          {/* Discovery reads three sources. When one of them cannot be read,
+              this list is short by an unknown amount — which used to look
+              exactly like having no projects. */}
+          <Notices inv={{ sources: found.sources ?? [] }} />
+
           <ul className={s.rows}>
             {found.projects.map((p) => (
               <li key={p.path} className={`${s.row} ${selected?.path === p.path ? s.active : ''}`}>

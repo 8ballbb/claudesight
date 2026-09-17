@@ -18,24 +18,42 @@ const under = (child, parent) => {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel))
 }
 
+// Every one of these returns its reader state alongside its paths. Collapsing
+// to [] made a denied or malformed source indistinguishable from a healthy one
+// listing nothing — the app's own invariant, violated in the one builder that
+// never carried `sources` the way buildInventory does.
 function fromRegistry(home) {
-  const r = readJsonSafe(path.join(home, '.claude.json'))
-  return r.state === 'ok' ? Object.keys(r.value.projects ?? {}) : []
+  const file = path.join(home, '.claude.json')
+  const r = readJsonSafe(file)
+  return {
+    paths: r.state === 'ok' ? Object.keys(r.value.projects ?? {}) : [],
+    source: { label: 'project registry', dir: file, state: r.state },
+  }
 }
 
 function fromHistory(root) {
   const file = path.join(root, 'history.jsonl')
   const out = new Set()
+  let state = 'ok'
+  let badLines = 0
   try {
-    for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    const text = fs.readFileSync(file, 'utf8')
+    if (!text.trim()) state = 'empty'
+    for (const line of text.split('\n')) {
       if (!line.includes('"project"')) continue
       try {
         const v = JSON.parse(line).project
         if (v) out.add(v)
-      } catch { /* one malformed line hides one path, not the file */ }
+      } catch { badLines += 1 } // one malformed line hides one path, not the file
     }
-  } catch { /* absent history is not an error */ }
-  return [...out]
+  } catch (err) {
+    state = err.code === 'ENOENT' ? 'absent'
+      : (err.code === 'EACCES' || err.code === 'EPERM' ? 'denied' : 'malformed')
+  }
+  // Lines that would not parse are counted, not swallowed: each one is a
+  // project this list may be missing.
+  if (state === 'ok' && badLines) state = 'malformed'
+  return { paths: [...out], source: { label: 'prompt history', dir: file, state, badLines } }
 }
 
 // One cwd per transcript: the directory the session STARTED in. Reading
@@ -44,11 +62,14 @@ function fromHistory(root) {
 function fromTranscripts(root) {
   const counts = new Map()
   const projects = path.join(root, 'projects')
+  let unreadable = 0
   let dirs
   try {
     dirs = fs.readdirSync(projects, { withFileTypes: true })
-  } catch {
-    return counts
+  } catch (err) {
+    const state = err.code === 'ENOENT' ? 'absent'
+      : (err.code === 'EACCES' || err.code === 'EPERM' ? 'denied' : 'malformed')
+    return { counts, source: { label: 'session transcripts', dir: projects, state, unreadable: 0 } }
   }
   // Transcripts nest: subagent sessions live under <session>/subagents/. They
   // carry cwd too, and reading only the top level misses whole projects —
@@ -58,7 +79,7 @@ function fromTranscripts(root) {
     let entries
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true })
-    } catch { return }
+    } catch { unreadable += 1; return }
     for (const entry of entries) {
       const full = path.join(dir, entry.name)
       if (entry.isDirectory()) { visit(full, depth + 1); continue }
@@ -70,13 +91,23 @@ function fromTranscripts(root) {
           try { cwd = JSON.parse(line).cwd } catch { continue }
           if (cwd) { counts.set(cwd, (counts.get(cwd) ?? 0) + 1); break }
         }
-      } catch { /* unreadable transcript hides one session */ }
+      } catch { unreadable += 1 } // an unreadable transcript hides one session
     }
   }
   for (const dir of dirs) {
     if (dir.isDirectory()) visit(path.join(projects, dir.name), 1)
   }
-  return counts
+  // `ok` with a non-zero count is still worth saying: every unreadable
+  // transcript is a session, and possibly a project, this list may be missing.
+  return {
+    counts,
+    source: {
+      label: 'session transcripts',
+      dir: projects,
+      state: unreadable ? 'partial' : 'ok',
+      unreadable,
+    },
+  }
 }
 
 // "Ephemeral scratch, not a project." Expressed against the platform's real
@@ -117,10 +148,15 @@ export function projectMarkers(dir) {
  * — fine on demand for the projects page, too slow to sit on the global page.
  */
 export function discoverProjects(root, home = os.homedir(), extra = [], tmp = os.tmpdir()) {
-  const sessions = fromTranscripts(root)
+  const registry = fromRegistry(home)
+  const history = fromHistory(root)
+  const transcripts = fromTranscripts(root)
+  const sessions = transcripts.counts
+  const sources = [registry.source, history.source, transcripts.source]
+
   const all = new Set([
-    ...fromRegistry(home),
-    ...fromHistory(root),
+    ...registry.paths,
+    ...history.paths,
     ...sessions.keys(),
     ...extra,
   ])
@@ -143,5 +179,5 @@ export function discoverProjects(root, home = os.homedir(), extra = [], tmp = os
   }
 
   projects.sort((a, b) => b.sessions - a.sessions || a.path.localeCompare(b.path))
-  return { projects, filtered }
+  return { projects, filtered, sources }
 }

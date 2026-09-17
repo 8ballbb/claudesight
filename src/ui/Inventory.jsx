@@ -8,6 +8,9 @@ export const SOURCE_NOTE = {
   empty: (dir) => `${dir} exists but is empty`,
   denied: (dir) => `${dir} exists but could not be read (permission denied)`,
   malformed: (dir) => `${dir} could not be parsed`,
+  // Read, but not completely. The count is the point: each unreadable entry is
+  // something this page may be missing, and a silent "ok" would hide that.
+  partial: (dir) => `${dir} was read, but some entries inside could not be`,
   // The file parsed; something inside it was not the shape the reader expects.
   // "Could not be parsed" would send you looking for a syntax error there is none of.
   'unexpected-shape': (dir) =>
