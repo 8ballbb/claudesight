@@ -68,6 +68,27 @@ therefore reported failure on every attempt while having succeeded, leaving a co
 Trash and the version still listed. If you touch trash.js, run the darwin tests in
 `tests/platform.test.js`, which exercise it for real.
 
+**Every declared hook gets a row, including ones that name no script.** A hook whose
+command is inline (`npx prettier --write`), a hooks block that is not a list, a matcher
+whose `hooks` is not a list, a hook entry with no command — all four were silently dropped,
+so a hook Claude Code runs on every matching tool call was absent from the page that exists
+to list what is configured. Rows with no script of their own take the path of the
+settings file that declares them, carry `ownScript: false` so nothing labels them
+executable, and an inline hook is NOT broken: it runs.
+
+**A hook's capabilities are a conditional claim and must stay one.** `capabilitiesOf` in
+readers/settings.js scans a script body for the protocol keys that auto-approve, rewrite
+the command, or hard-block. It says "can auto-approve", never "auto-approved" — a body
+that builds its JSON dynamically or shells out to a binary is invisible to a text scan, so
+an empty list means "nothing found by reading". The fixed "Not checked" line under the
+scripts group exists for the same reason: nothing here is executed, and a clean list must
+never read as a clean bill of health.
+
+**Version ids must stay sortable.** They were `<ISO timestamp>-<random hex>` and the list
+is sorted by id as a string, so two snapshots inside one millisecond ordered at random —
+which made "newest first" wrong and `listVersions()[0]` an unreliable answer to "what did
+I save last". A zero-padded counter fixed it. It surfaced as a flaky test, not a report.
+
 **Deletion moves to the Trash.** `trash.js` refuses rather than unlinking when it cannot
 identify a trash mechanism. Never add an `fs.unlink` fallback.
 
