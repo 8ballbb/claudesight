@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Inventory, { Notices } from './Inventory.jsx'
 import Editor from './Editor.jsx'
 import s from './app.module.css'
+import { creatorsFor } from './NewArtifact.jsx'
 
 const LAST_PROJECT = 'claudesight.lastProject'
 
@@ -177,6 +178,19 @@ export default function Projects({ post, guard, frozen }) {
     fetch('/api/projects').then((r) => r.json()).then(setFound)
   }, [])
 
+  // Re-read the project so the new row exists, then open it. The scaffold is
+  // the one state that cannot be reconstructed once edited, which is why the
+  // server saved it as the first version.
+  const afterCreate = async (r) => {
+    if (!selected) return
+    const fresh = await post('/api/project-inventory', { path: selected.path })
+    if (fresh?.groups) {
+      setInv(fresh)
+      const item = fresh.groups.flatMap((g) => g.items).find((i) => i.id === r.id)
+      if (item) guard.request(item)
+    }
+  }
+
   const pick = async (project) => {
     setSelected(project)
     guard.request(null)
@@ -271,7 +285,15 @@ export default function Projects({ post, guard, frozen }) {
             <p className={s.path}>{selected.path}</p>
             {!inv && <p className={s.loading}>Reading…</p>}
             {inv && <Notices inv={inv} />}
-            {inv && <Inventory inv={inv} openId={guard.open?.id} onOpen={guard.request} scope="project" />}
+            {inv && (
+              <Inventory
+                inv={inv}
+                openId={guard.open?.id}
+                onOpen={guard.request}
+                scope="project"
+                extras={creatorsFor({ project: selected.path, onCreated: afterCreate, post, inv })}
+              />
+            )}
           </section>
         )}
         {!selected && (

@@ -4,6 +4,7 @@ import Inventory, { Notices } from './Inventory.jsx'
 import Projects from './Projects.jsx'
 import { useCloseGuard, CloseGuard } from './closeGuard.jsx'
 import s from './app.module.css'
+import { creatorsFor } from './NewArtifact.jsx'
 
 // Every write goes through here. A hidden tab polls nothing, so the moment a
 // person actually does something is the other moment the server's absence has
@@ -60,54 +61,6 @@ function ThemePicker() {
   )
 }
 
-function NewSkill({ onCreated }) {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [error, setError] = useState(null)
-  const [busy, setBusy] = useState(false)
-
-  const submit = async (e) => {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    const r = await post('/api/create', { kind: 'skill', name: name.trim(), description })
-    setBusy(false)
-    if (!r.ok) { setError(r.reason ?? r.error); return }
-    setOpen(false); setName(''); setDescription('')
-    onCreated(r)
-  }
-
-  if (!open) return <button className={s.newBtn} onClick={() => setOpen(true)}>+ new skill</button>
-
-  return (
-    <form className={s.newForm} onSubmit={submit}>
-      <input
-        className={s.labelInput}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="name (lower-case, hyphens)"
-        aria-label="Skill name"
-        autoFocus
-      />
-      <input
-        className={s.labelInput}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="description — when should Claude use this?"
-        aria-label="Skill description"
-      />
-      <button className={s.btn} type="submit" disabled={busy || !name.trim() || !description.trim()}>
-        {busy ? 'Creating…' : 'Create'}
-      </button>
-      <button className={`${s.btn} ${s.btnQuiet}`} type="button" onClick={() => { setOpen(false); setError(null) }}>
-        Cancel
-      </button>
-      {error && <p className={`${s.status} ${s.bad}`}>{error}</p>}
-    </form>
-  )
-}
-
 function GlobalView({ inv, reload, guard, frozen }) {
   const [created, setCreated] = useState(null)
 
@@ -132,7 +85,7 @@ function GlobalView({ inv, reload, guard, frozen }) {
           inv={inv}
           openId={guard.open?.id}
           onOpen={guard.request}
-          extras={{ skill: <NewSkill onCreated={afterCreate} /> }}
+          extras={creatorsFor({ onCreated: afterCreate, post, inv })}
         />
       </div>
       {guard.open && (

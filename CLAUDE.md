@@ -76,6 +76,15 @@ to list what is configured. Rows with no script of their own take the path of th
 settings file that declares them, carry `ownScript: false` so nothing labels them
 executable, and an inline hook is NOT broken: it runs.
 
+**The confirmation gate reads markdown frontmatter, not only JSON.** It used to fire
+only for `.json`, but a subagent's frontmatter carries `hooks:` — shell Claude Code runs
+— and `permissionMode: bypassPermissions`, which stops it asking at all. Those are the
+capabilities settings.json is gated for, reached through a file the gate never looked
+at. Deliberately not gated: `tools: Bash`, because omitting `tools` inherits everything
+including Bash, so warning about the explicit spelling while ignoring the permissive
+default would warn about the safer of the two. A capability already present and
+unchanged is not re-confirmed; the gate marks the moment one appears.
+
 **A hook's capabilities are a conditional claim and must stay one.** `capabilitiesOf` in
 readers/settings.js scans a script body for the protocol keys that auto-approve, rewrite
 the command, or hard-block. It says "can auto-approve", never "auto-approved" — a body
@@ -213,8 +222,19 @@ No search, sort or filter anywhere. No keyboard navigation beyond Escape. No ses
 view, though transcripts are already parsed for project discovery. No token-cost
 accounting — and note that the app could only ever estimate it by measuring text, since
 the real figures come from Claude Code itself; an estimate presented as authoritative
-would be a new way of lying. Agent and command *creation* (only skills can be created).
-Managed-policy source display. No multi-machine anything.
+would be a new way of lying. Managed-policy source display. No multi-machine anything.
+
+**What can be created, and what deliberately cannot.** Four kinds, at both scopes:
+CLAUDE.md, rules, skills and subagents. Those are the artifacts that are user-authored,
+already visible in the app, safe to create, and current. Commands are NOT among them
+even though the app lists them: the docs mark `.claude/commands/*.md` deprecated in
+favour of skills, and a creator that steers people onto a deprecated mechanism is worse
+than no creator. Hook scripts are not creatable either — writing an executable shell
+file is the riskiest act in this family. Workflows are written by Claude, not by hand.
+Output styles, `.mcp.json` entries and settings files need a reader or a gate first.
+A scheduled task's prompt is editable but a task cannot be created: the schedule, folder
+and model are Claude Desktop's own state, so offering to create one would promise
+something the file cannot deliver.
 
 The declared-vs-used join is done. A hook or statusline script declared but missing or
 unreadable is broken at both scopes; a plugin enabled in settings but not installed is

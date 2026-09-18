@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createSkill, validateName } from '../src/server/create.js'
+import { createArtifact, validateName } from '../src/server/create.js'
 import { readSkills } from '../src/server/readers/skills.js'
 
 let root
@@ -25,15 +25,15 @@ describe('validateName', () => {
   })
 })
 
-describe('createSkill', () => {
+describe('creating a skill', () => {
   it('creates the directory and a SKILL.md', () => {
-    const r = createSkill({ root, name: 'my-skill', description: 'Use when testing things.' })
+    const r = createArtifact({ root, kind: 'skill', name: 'my-skill', description: 'Use when testing things.' })
     expect(r.ok).toBe(true)
     expect(fs.existsSync(path.join(root, 'skills', 'my-skill', 'SKILL.md'))).toBe(true)
   })
 
   it('produces a skill our own reader accepts as well-formed', () => {
-    createSkill({ root, name: 'round-trip', description: 'Use when checking the round trip.' })
+    createArtifact({ root, kind: 'skill', name: 'round-trip', description: 'Use when checking the round trip.' })
     const found = readSkills(root).skills.find((s) => s.name === 'round-trip')
     expect(found).toBeTruthy()
     expect(found.malformed).toBe(false)
@@ -43,27 +43,27 @@ describe('createSkill', () => {
   })
 
   it('requires a description, because an undescribed skill is invisible', () => {
-    const r = createSkill({ root, name: 'nodesc', description: '   ' })
+    const r = createArtifact({ root, kind: 'skill', name: 'nodesc', description: '   ' })
     expect(r.ok).toBe(false)
     expect(r.error).toBe('invalid-description')
     expect(fs.existsSync(path.join(root, 'skills', 'nodesc'))).toBe(false)
   })
 
   it('keeps a multi-line description from breaking the frontmatter', () => {
-    createSkill({ root, name: 'multi', description: 'first line\nsecond line\n\nthird' })
+    createArtifact({ root, kind: 'skill', name: 'multi', description: 'first line\nsecond line\n\nthird' })
     const found = readSkills(root).skills.find((s) => s.name === 'multi')
     expect(found.malformed).toBe(false)
     expect(found.description).toBe('first line second line third')
   })
 
   it('caps a very long description', () => {
-    createSkill({ root, name: 'long', description: 'x'.repeat(900) })
+    createArtifact({ root, kind: 'skill', name: 'long', description: 'x'.repeat(900) })
     expect(readSkills(root).skills.find((s) => s.name === 'long').description).toHaveLength(400)
   })
 
   it('refuses to overwrite an existing skill', () => {
-    createSkill({ root, name: 'twice', description: 'first' })
-    const second = createSkill({ root, name: 'twice', description: 'second' })
+    createArtifact({ root, kind: 'skill', name: 'twice', description: 'first' })
+    const second = createArtifact({ root, kind: 'skill', name: 'twice', description: 'second' })
     expect(second.ok).toBe(false)
     expect(second.error).toBe('exists')
     expect(readSkills(root).skills.find((s) => s.name === 'twice').description).toBe('first')
@@ -72,7 +72,7 @@ describe('createSkill', () => {
   it('completes a half-made skill directory rather than refusing', () => {
     fs.mkdirSync(path.join(root, 'skills', 'partial'), { recursive: true })
     fs.writeFileSync(path.join(root, 'skills', 'partial', 'notes.md'), 'scratch')
-    expect(createSkill({ root, name: 'partial', description: 'finish me' }).ok).toBe(true)
+    expect(createArtifact({ root, kind: 'skill', name: 'partial', description: 'finish me' }).ok).toBe(true)
   })
 
   it('warns about a plugin skill of the same name instead of refusing', () => {
@@ -80,14 +80,14 @@ describe('createSkill', () => {
     fs.mkdirSync(pluginSkill, { recursive: true })
     fs.writeFileSync(path.join(pluginSkill, 'SKILL.md'), '---\nname: brainstorming\ndescription: theirs\n---\n')
 
-    const r = createSkill({ root, name: 'brainstorming', description: 'mine' })
+    const r = createArtifact({ root, kind: 'skill', name: 'brainstorming', description: 'mine' })
     expect(r.ok).toBe(true)
     expect(r.warning).toMatch(/both will load/i)
     expect(r.warning).toContain('/brainstorming')
   })
 
   it('reports a name that fails validation without touching the filesystem', () => {
-    const r = createSkill({ root, name: '../escape', description: 'nope' })
+    const r = createArtifact({ root, kind: 'skill', name: '../escape', description: 'nope' })
     expect(r.ok).toBe(false)
     expect(r.error).toBe('invalid-name')
     expect(fs.existsSync(path.join(root, 'skills'))).toBe(false)
@@ -95,7 +95,7 @@ describe('createSkill', () => {
 
   it('reports a skills path that is a file rather than a directory', () => {
     fs.writeFileSync(path.join(root, 'skills'), 'not a directory')
-    const r = createSkill({ root, name: 'blocked', description: 'x' })
+    const r = createArtifact({ root, kind: 'skill', name: 'blocked', description: 'x' })
     expect(r.ok).toBe(false)
     expect(['not-a-directory', 'exists', 'denied']).toContain(r.error)
   })

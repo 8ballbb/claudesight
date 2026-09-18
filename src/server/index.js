@@ -7,7 +7,7 @@ import { buildInventory, buildProjectInventory } from './api.js'
 import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
 import { listVersions, createVersion, readVersion, deleteVersion, compareVersion } from './versions.js'
-import { createSkill } from './create.js'
+import { createArtifact } from './create.js'
 
 const json = (res, status, body, headers = {}) => {
   res.writeHead(status, { 'content-type': 'application/json', ...headers })
@@ -188,22 +188,42 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
         if (url.pathname === '/api/create' && req.method === 'POST') {
           const body = await parseBody(req)
           if (body === null) return json(res, 400, { error: 'invalid-json' })
-          if (body.kind !== 'skill') {
-            return json(res, 400, {
-              ok: false,
-              error: 'unsupported-kind',
-              reason: 'Only skills can be created in this version.',
-            })
+          // Scope: the global config root, or a project — and only a project
+          // already discovered, the same rule /api/project-inventory applies.
+          // The client never supplies a filesystem path to write to.
+          let target = { root, projectPath: undefined }
+          if (typeof body.project === 'string' && body.project.length > 0) {
+            const dir = path.resolve(body.project)
+            if (!allowed.has(dir)) {
+              return json(res, 403, { ok: false, error: 'not-discovered', reason: 'Open this project from the list first.' })
+            }
+            target = { root: path.join(dir, '.claude'), projectPath: dir }
           }
-          const made = createSkill({ root, name: body.name, description: body.description })
-          if (!made.ok) return json(res, 409, made)
+
+          const made = createArtifact({
+            ...target,
+            kind: body.kind,
+            name: body.name,
+            description: body.description,
+          })
+          if (!made.ok) return json(res, made.error === 'unsupported-kind' ? 400 : 409, made)
 
           // The scaffold is the one state that cannot be reconstructed once
           // it has been edited, so it becomes the first restore point.
           createVersion(made.path, 'created')
 
-          inventory = buildInventory(root)
-          const found = [...inventory.table.entries()].find(([, e]) => e.path === made.path)
+          // Rebuild the inventory the artifact belongs to, so the new row —
+          // and its id — exist before the client asks for them.
+          let table
+          if (target.projectPath) {
+            const built = buildProjectInventory(target.projectPath)
+            projectInventories.set(target.projectPath, built)
+            table = built.table
+          } else {
+            inventory = buildInventory(root)
+            table = inventory.table
+          }
+          const found = [...table.entries()].find(([, e]) => e.path === made.path)
           return json(res, 200, { ...made, id: found ? found[0] : null })
         }
 
