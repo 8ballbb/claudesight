@@ -18,6 +18,39 @@ const MARKER_LABEL = {
   skills: 'skills', claudeDir: '.claude', pluginSource: 'plugin source', git: 'git',
 }
 
+// A row that silently clips its last chip is the same lie as a count standing
+// in for the paths behind it. Show what fits, then say how many did not.
+//
+// Extracted from the row so it can be mounted: this was previously asserted by
+// matching `const MARKERS_SHOWN = 4` in the source, which cannot tell whether
+// the cap ever reaches the screen.
+export function Markers({ markers }) {
+  const found = markers ? MARKER_ORDER.filter((m) => markers[m]) : []
+  const shown = found.slice(0, MARKERS_SHOWN)
+  const hidden = found.length - shown.length
+  return (
+    <>
+      {shown.map((m) => (
+        <span
+          key={m}
+          className={`${s.chip} ${m === 'git' ? s.locked : s.free}`}
+          title={`${MARKER_LABEL[m]} found in this project`}
+        >
+          {MARKER_LABEL[m]}
+        </span>
+      ))}
+      {hidden > 0 && (
+        <span
+          className={`${s.chip} ${s.locked}`}
+          title={found.map((m) => MARKER_LABEL[m]).join(', ')}
+        >
+          +{hidden}
+        </span>
+      )}
+    </>
+  )
+}
+
 // The count on its own was a dead end: it said six directories were dropped
 // and could not say which. The server has always known both the path and the
 // reason; this is the last step to the screen, where that fact used to be
@@ -162,35 +195,7 @@ export default function Projects({ post, guard, frozen }) {
                 <span className={s.rowTail}>
                   {!p.exists && <span className={`${s.chip} ${s.alarm}`}>gone</span>}
                   {p.exists && !p.configured && <span className={`${s.chip} ${s.locked}`}>no config</span>}
-                  {(() => {
-                    // A row that silently clips its last chip is the same lie as
-                    // a count standing in for the paths behind it. Show what
-                    // fits, then say how many did not.
-                    const found = p.markers ? MARKER_ORDER.filter((m) => p.markers[m]) : []
-                    const shown = found.slice(0, MARKERS_SHOWN)
-                    const hidden = found.length - shown.length
-                    return (
-                      <>
-                        {shown.map((m) => (
-                          <span
-                            key={m}
-                            className={`${s.chip} ${m === 'git' ? s.locked : s.free}`}
-                            title={`${MARKER_LABEL[m]} found in this project`}
-                          >
-                            {MARKER_LABEL[m]}
-                          </span>
-                        ))}
-                        {hidden > 0 && (
-                          <span
-                            className={`${s.chip} ${s.locked}`}
-                            title={found.map((m) => MARKER_LABEL[m]).join(', ')}
-                          >
-                            +{hidden}
-                          </span>
-                        )}
-                      </>
-                    )
-                  })()}
+                  <Markers markers={p.markers} />
                 </span>
               </li>
             ))}

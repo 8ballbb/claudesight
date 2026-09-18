@@ -59,23 +59,7 @@ describe('a broken settings.json is shown, not swallowed', () => {
   })
 })
 
-describe('the row says what is wrong', () => {
-  const src = fs.readFileSync('src/ui/Inventory.jsx', 'utf8')
-
-  it('prefers the parse error over the key count', () => {
-    expect(src).toContain("item.state === 'malformed'")
-    expect(src).toContain('invalid JSON at line')
-  })
-
-  it('admits when the parser did not give a position', () => {
-    expect(src).toContain('the parser did not say where')
-  })
-
-  it('treats a file Claude Code cannot parse as broken, not a caution', () => {
-    expect(src).toMatch(/item\.state === 'malformed'\) out\.push\(\['malformed', s\.alarm\]\)/)
-  })
-
-  it('names both versions on a drifted plugin instead of just "drift"', () => {
-    expect(src).toContain('manifest says')
-  })
-})
+// The row-copy assertions here read Inventory.jsx as a string. They are now
+// mounted assertions in tests/ui-behaviour.test.jsx: the parse position, the
+// admission when the parser gave none, the alarm tone, and both versions on a
+// drifted plugin.

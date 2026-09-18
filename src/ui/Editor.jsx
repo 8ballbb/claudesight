@@ -99,7 +99,7 @@ function factsFor(item, doc) {
 // "no difference" to a reader when it might mean "could not be computed".
 // Both diffs are computed in the direction of the action, so `add` always
 // means the action adds this line. The verb is the only thing that differs.
-function Diff({ result, verb, nothingToDo }) {
+export function Diff({ result, verb, nothingToDo }) {
   if (!result) return <p className={s.hint}>Comparing…</p>
   if (result.state === 'identical') return <p className={s.hint}>{nothingToDo}</p>
   if (result.state !== 'changed') {

@@ -58,22 +58,8 @@ describe('denied directories', () => {
   })
 })
 
-describe('the notices surface carries paths, not only counts', () => {
-  const src = fs.readFileSync('src/ui/Inventory.jsx', 'utf8')
-
-  it('passes the denied paths into the note', () => {
-    expect(src).toContain('paths: inv.denied')
-  })
-
-  it('carries the errno alongside a path that failed unexpectedly', () => {
-    expect(src).toContain('e.errno ?')
-  })
-
-  it('renders each path with a title attribute so a truncated one is recoverable', () => {
-    expect(src).toContain('title={p}')
-  })
-
-  it('folds only long lists — a short one is shown outright', () => {
-    expect(src).toContain('paths.length <= PATHS_SHOWN_BY_DEFAULT')
-  })
-})
+// The UI half of this file used to read Inventory.jsx as a string and assert
+// on fragments like `title={p}` — which passes even if Notices has stopped
+// rendering. Those behaviours are now asserted against a mounted component in
+// tests/ui-behaviour.test.jsx: the paths themselves, their title attributes,
+// the fold on long lists and the errno beside an unexpected failure.
