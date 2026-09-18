@@ -7,6 +7,12 @@
 //   node scripts/demo-config.mjs /tmp/demo
 //   HOME=/tmp/demo CLAUDE_CONFIG_DIR=/tmp/demo/.claude node bin/claudesight.js
 //
+// BOTH variables are required. Project discovery reads os.homedir() rather
+// than the config root, so CLAUDE_CONFIG_DIR alone points the project list at
+// your real ~/.claude.json while the fixture's own projects are discarded as
+// temporary directories — a screenshot of your real work, from a script whose
+// entire purpose is that screenshots are of nobody's machine.
+//
 // Fabricated on purpose, and chosen to exercise what the UI has to say:
 // a hook whose script is missing, an inline hook, a hook that can auto-approve,
 // a plugin whose manifest disagrees with the installed version, a plugin
@@ -15,12 +21,35 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const home = path.resolve(process.argv[2] ?? '')
-if (!home || home === '/' || home.includes('/.claude')) {
+// Guard the ARGUMENT, not the resolved path: path.resolve(undefined ?? '')
+// is the current directory, so a missing argument used to fabricate the whole
+// configuration into wherever you happened to be standing.
+const given = process.argv[2]
+if (!given) {
   console.error('usage: node scripts/demo-config.mjs <empty-directory>')
   process.exit(1)
 }
-if (fs.existsSync(home) && fs.readdirSync(home).length > 0) {
+const home = path.resolve(given)
+// Segment comparison, not substring: `.includes('/.claude')` also refused
+// unrelated targets like /tmp/.claudesight-demo.
+if (home === path.parse(home).root || home.split(path.sep).includes('.claude')) {
+  console.error(`refusing to write into ${home}`)
+  process.exit(1)
+}
+let existing = null
+try {
+  existing = fs.readdirSync(home)
+} catch (err) {
+  if (err.code === 'ENOTDIR') {
+    console.error(`${home} is a file, not a directory.`)
+    process.exit(1)
+  }
+  if (err.code !== 'ENOENT') {
+    console.error(`cannot read ${home}: ${err.code}`)
+    process.exit(1)
+  }
+}
+if (existing && existing.length > 0) {
   console.error(`${home} is not empty — refusing to write into it.`)
   process.exit(1)
 }
@@ -111,8 +140,6 @@ const projects = [
 for (const dir of projects) fs.mkdirSync(dir, { recursive: true })
 write(`${repo}/packages/web/CLAUDE.md`, '# web\n\nThe customer-facing app.\n')
 
-json('.claude.json', { projects: Object.fromEntries(projects.map((p) => [p, { allowedTools: [] }])) })
-
 write('.claude/history.jsonl', projects
   .flatMap((p, i) => Array.from({ length: 9 - i * 2 }, (_, n) =>
     JSON.stringify({ display: `fabricated prompt ${n + 1}`, project: p })))
@@ -127,8 +154,9 @@ for (const [i, p] of projects.entries()) {
   }
 }
 
-// One remembered directory that is no longer there, so the "gone" row and the
-// count that reveals it are both visible.
+// The registry, written once: the discovered projects plus one remembered
+// directory that is no longer there, so the "gone" row and the count that
+// reveals it are both visible.
 json('.claude.json', {
   projects: Object.fromEntries(
     [...projects, `${home}/work/removed-experiment`].map((p) => [p, { allowedTools: [] }]),

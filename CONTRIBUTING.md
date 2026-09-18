@@ -51,8 +51,11 @@ in the same change.** A platform without CI is a claim nobody has checked.
 
 The two images in the README come from a fabricated configuration, never from a real
 machine. `scripts/demo-config.mjs <empty-dir>` builds it and prints the command to serve
-it; it refuses a directory that is not empty, and refuses anything under a `.claude`
-path. The fixture is chosen to exercise what the UI has to say — a hook whose script is
+it; it refuses a directory that is not empty, one that is a file, and any path with
+a `.claude` segment. **Serve it with both `HOME` and `CLAUDE_CONFIG_DIR` set** — the
+printed command does this. Project discovery reads `os.homedir()` rather than the
+config root, so `CLAUDE_CONFIG_DIR` on its own would point the project list at your
+real registry and screenshot your actual work. The fixture is chosen to exercise what the UI has to say — a hook whose script is
 missing, an inline hook, a hook that can auto-approve, a plugin whose manifest disagrees
 with the installed version, a plugin enabled but never installed, a monorepo package
 that inherits from its repository root, an MCP server that is not on PATH, and a

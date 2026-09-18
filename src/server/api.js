@@ -16,6 +16,15 @@ import { readScheduledTasks } from './readers/scheduled.js'
 
 const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').slice(0, 16)
 
+// An id identifies a ROW, not a file. Several rows legitimately share a path:
+// an MCP server is addressed by the .mcp.json that declares it, an inline hook
+// by the settings.json that declares it. Hashing the path alone gave the
+// .mcp.json row and every server in it one id between them — duplicate React
+// keys in one list, and clicking any of them selecting all of them. A row that
+// shares a path says how it differs; the key stays deterministic, so ids are
+// stable across reads.
+const idOf = (e) => handleFor(e.idKey ?? e.path)
+
 // A project's .claude/ is structurally the global root in miniature, so the
 // same readers work against it. `root` for classification is the PROJECT
 // directory, not its .claude/, because CLAUDE.md and .mcp.json sit beside it.
@@ -31,6 +40,9 @@ function scriptRow(r, declaredIn, keyPrefix = '') {
   const inline = r.state === 'not-declared'
   return {
     path: r.scriptPath ?? declaredIn,
+    // Two inline hooks in one settings file share that file's path, and so
+    // did their ids. The key path is what distinguishes the declarations.
+    idKey: `${r.scriptPath ?? declaredIn}\u0000${keyPrefix}${r.keyPath}`,
     label: r.scriptPath ? path.basename(r.scriptPath) : lastKey(r.keyPath),
     keyPath: keyPrefix + r.keyPath,
     command: r.command,
@@ -64,7 +76,7 @@ export function buildProjectInventory(projectPath) {
   const add = (groupKind, entries) => {
     const items = entries.map((e) => {
       const kind = e.artifactKind ?? groupKind
-      const id = handleFor(e.path)
+      const id = idOf(e)
       // The root an artifact is judged by travels with it. The write route
       // used to judge everything against the global config root, so every
       // project file was advertised editable here and refused there.
@@ -142,6 +154,7 @@ export function buildProjectInventory(projectPath) {
     for (const srv of readMcpServers(mcpFile).servers) {
       mcpRows.push({
         path: mcpFile,
+        idKey: `${mcpFile}\u0000mcpServer:${srv.name}`,
         label: srv.name,
         artifactKind: 'mcpServer',
         state: 'ok',
@@ -323,7 +336,7 @@ export function buildInventory(root) {
   const add = (groupKind, entries) => {
     const items = entries.map((e) => {
       const kind = e.artifactKind ?? groupKind
-      const id = handleFor(e.path)
+      const id = idOf(e)
       table.set(id, { path: e.path, kind, root })
       return { id, kind, ...e, writability: classify({ path: e.path, kind, root }) }
     })

@@ -172,10 +172,21 @@ describe('claims the docs make about behaviour', () => {
   })
 
   it('points only at files that exist', () => {
-    const referenced = [...readme.matchAll(/\(([A-Za-z0-9_./-]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
+    // The character class excluded `:`, so an https link matched WITHOUT its
+    // scheme and the startsWith('http') guard could never fire — a future
+    // `[spec](https://example.com/doc.md)` would have failed as a missing
+    // file. Match the whole target, then drop the ones that are URLs.
+    const referenced = [...readme.matchAll(/\(([^()\s]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
     for (const rel of referenced) {
-      if (rel.startsWith('http')) continue
+      if (rel.includes('://')) continue
       expect(fs.existsSync(rel), `README points at ${rel}, which does not exist`).toBe(true)
     }
+  })
+
+  it('does not mistake a URL for a missing file', () => {
+    const withUrl = `${readme}\n[spec](https://example.com/doc.md)\n`
+    const referenced = [...withUrl.matchAll(/\(([^()\s]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
+    expect(referenced).toContain('https://example.com/doc.md')
+    expect(referenced.filter((r) => !r.includes('://')).every((r) => fs.existsSync(r))).toBe(true)
   })
 })

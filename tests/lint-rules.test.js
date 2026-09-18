@@ -53,3 +53,24 @@ describe('the rules that enforce spec §9.5 still fire', () => {
     expect(messages).toEqual([])
   })
 })
+
+// `npm run lint` enumerates scripts/, so an .mjs file there LOOKED linted
+// while every config block was scoped to .js/.jsx — it was checked against no
+// rules at all, and an undefined identifier passed CI. The extension list is
+// the whole guard, so it gets a test of its own.
+describe('extensions the config actually covers', () => {
+  it('lints .mjs, which npm run lint enumerates', () => {
+    const messages = lint(fixture('script.mjs', 'const x = notDefinedAnywhere\nexport default x\n'))
+    expect(messages.map((m) => m.ruleId)).toContain('no-undef')
+  })
+
+  it('lints .jsx, the extension this hole was first found in', () => {
+    const messages = lint(fixture('component.jsx', 'const x = alsoNotDefined\nexport default x\n'))
+    expect(messages.map((m) => m.ruleId)).toContain('no-undef')
+  })
+
+  it('still lints plain .js', () => {
+    const messages = lint(fixture('plain.js', 'const x = stillNotDefined\nexport default x\n'))
+    expect(messages.map((m) => m.ruleId)).toContain('no-undef')
+  })
+})
