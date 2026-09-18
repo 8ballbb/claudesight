@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.0 — 2026-09-18
+
+### Added
+
+- join what is declared against what is actually there
+- list the configuration a project inherits from its parent directories
+
+### Fixed
+
+- say which directories were filtered out, not just how many
+- let project files actually save, instead of refusing them as foreign
+
 ## v0.3.1 — 2026-09-18
 
 ### Fixed
