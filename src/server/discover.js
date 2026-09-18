@@ -115,14 +115,19 @@ function fromTranscripts(root) {
 // which are macOS-specific — and which swallowed every project under a
 // temp-dir home. Work inside your own home still counts even when the home
 // itself is temporary.
+// Returns the REASON a directory is not a project, or null when it is one.
+// This used to answer true/false and the caller kept a count, so the page
+// could say six were dropped but not which, or why — the one question a
+// reader actually has.
 function isNoise(p, home, root, tmp) {
-  if (p === home) return true // the home directory is not a project
-  if (under(p, root)) return true // inside the config root
+  if (p === home) return 'your home directory, not a project'
+  if (under(p, root)) return 'inside the Claude configuration directory'
   // os.tmpdir() plus /tmp, which is ephemeral by POSIX convention — macOS
   // exposes it as both /tmp and /private/tmp. Work inside your own home still
   // counts even when the home itself is temporary, which is how the tests run.
   const ephemeral = [tmp, path.join('/private', tmp.replace(/^\/private/, '')), '/tmp', '/private/tmp']
-  return ephemeral.some((e) => under(p, e)) && !under(p, home)
+  if (ephemeral.some((e) => under(p, e)) && !under(p, home)) return 'a temporary directory'
+  return null
 }
 
 // What Claude-related files does this directory actually hold?
@@ -162,9 +167,10 @@ export function discoverProjects(root, home = os.homedir(), extra = [], tmp = os
   ])
 
   const projects = []
-  let filtered = 0
+  const filteredPaths = []
   for (const dir of all) {
-    if (isNoise(dir, home, root, tmp)) { filtered += 1; continue }
+    const why = isNoise(dir, home, root, tmp)
+    if (why !== null) { filteredPaths.push({ path: dir, reason: why }); continue }
     const exists = fs.existsSync(dir) && fs.statSync(dir).isDirectory()
     const markers = exists ? projectMarkers(dir) : null
     projects.push({
@@ -179,5 +185,5 @@ export function discoverProjects(root, home = os.homedir(), extra = [], tmp = os
   }
 
   projects.sort((a, b) => b.sessions - a.sessions || a.path.localeCompare(b.path))
-  return { projects, filtered, sources }
+  return { projects, filtered: filteredPaths.length, filteredPaths, sources }
 }

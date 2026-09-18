@@ -18,6 +18,48 @@ const MARKER_LABEL = {
   skills: 'skills', claudeDir: '.claude', pluginSource: 'plugin source', git: 'git',
 }
 
+// The count on its own was a dead end: it said six directories were dropped
+// and could not say which. The server has always known both the path and the
+// reason; this is the last step to the screen, where that fact used to be
+// discarded. When the list is missing the count still shows, without a
+// disclosure that would render an empty list and imply nothing was dropped.
+export function FilteredNote({ filtered, filteredPaths }) {
+  const [open, setOpen] = useState(false)
+  const label = `${filtered} filtered`
+  if (!filtered || !filteredPaths?.length) {
+    return <span className={s.groupCount}>{label}</span>
+  }
+
+  const byReason = new Map()
+  for (const f of filteredPaths) {
+    if (!byReason.has(f.reason)) byReason.set(f.reason, [])
+    byReason.get(f.reason).push(f.path)
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={s.groupCount}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        {label}
+      </button>
+      {open && (
+        <ul className={s.hint}>
+          {[...byReason].map(([reason, dirs]) => (
+            <li key={reason}>
+              {reason}
+              <ul>{dirs.map((d) => <li key={d}><code>{d}</code></li>)}</ul>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  )
+}
+
 export default function Projects({ post, guard, frozen }) {
   const [found, setFound] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -91,7 +133,7 @@ export default function Projects({ post, guard, frozen }) {
             <h2 className={s.groupName}>projects</h2>
             <span className={s.groupCount}>{found.projects.length}</span>
             <span className={s.groupRule} />
-            <span className={s.groupCount}>{found.filtered} filtered</span>
+            <FilteredNote filtered={found.filtered} filteredPaths={found.filteredPaths} />
           </div>
 
           <p className={s.hint}>
