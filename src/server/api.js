@@ -35,6 +35,10 @@ function scriptRow(r, declaredIn, keyPrefix = '') {
     // and could not be found, or a declaration that will not parse, is.
     broken: r.state === 'absent' || r.state === 'denied' || r.state === 'malformed',
     inline,
+    // Whether this row has a file of its own. A row standing in for a hook
+    // declaration points at settings.json, which is not a script and must not
+    // be labelled like one.
+    ownScript: Boolean(r.scriptPath),
     reason: r.reason ?? (inline ? 'runs inline; names no script file' : null),
     capabilities: r.capabilities,
   }

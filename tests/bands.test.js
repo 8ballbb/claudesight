@@ -29,9 +29,12 @@ describe('bandsFor', () => {
     expect(bands.map((b) => b.label)).toEqual(['big', 'small'])
   })
 
-  it('leaves an owned band unannotated — the label already names the owner', () => {
+  it('annotates an owned band read-only, because its rows no longer say so', () => {
+    // This used to assert note: null, on the reasoning that naming the owner
+    // implied it. That held only while every row inside also carried a
+    // read-only chip. The rows stopped, so the band has to say it.
     const [band] = bandsFor([item('a', 'redirect', { plugin: 'spyglass' })])
-    expect(band).toMatchObject({ label: 'spyglass', note: null })
+    expect(band).toMatchObject({ label: 'spyglass', note: 'read-only' })
   })
 
   it('falls back to the marketplace when there is no plugin — plugins themselves', () => {

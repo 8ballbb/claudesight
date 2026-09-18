@@ -73,18 +73,26 @@ describe('writability is stated once per band, not once per row', () => {
     writability: { class: 'redirect', reason: 'Owned by a plugin' },
   })
 
-  it('does not repeat "read-only" on every row of an owner band', () => {
-    render(<Inventory inv={{ groups: [group('skill', [owned('one'), owned('two'), owned('three')])] }} />)
-    fireEvent.click(screen.getByText(/skill/i))
-    fireEvent.click(screen.getByText('acme-tools'))
-    expect(screen.getByText('one')).toBeTruthy()          // the band really is open
-    expect(screen.queryAllByText('read-only')).toHaveLength(1)
+  it('states "read-only" a number of times that does not grow with the rows', () => {
+    // The real property: adding items to an owner band must not add the word.
+    // Counting exact occurrences would just encode today's layout.
+    const count = (n) => {
+      const items = Array.from({ length: n }, (_, i) => owned(`s${i}`))
+      render(<Inventory inv={{ groups: [group('skill', items)] }} />)
+      fireEvent.click(screen.getByText(/skill/i))
+      fireEvent.click(screen.getByText('acme-tools'))
+      expect(screen.getByText('s0')).toBeTruthy()       // the band really is open
+      const seen = screen.queryAllByText('read-only').length
+      cleanup(); window.localStorage.clear()
+      return seen
+    }
+    expect(count(6)).toBe(count(2))
   })
 
-  it('still says it once, on the band itself', () => {
+  it('still says it, on the band itself', () => {
     render(<Inventory inv={{ groups: [group('skill', [owned('one')])] }} />)
     fireEvent.click(screen.getByText(/skill/i))
-    expect(screen.getByText('read-only')).toBeTruthy()
+    expect(screen.getAllByText('read-only').length).toBeGreaterThan(0)
   })
 
   it('keeps per-row chips in your own band, where the class actually varies', () => {

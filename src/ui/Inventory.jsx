@@ -54,6 +54,12 @@ const EDITABLE = new Set(['free', 'exec'])
 
 function meta(item) {
   if (item.kind === 'memory') return `${item.bytes} bytes`
+  if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
+    if (item.reason) return `${item.keyPath} — ${item.reason}`
+    if (item.state === 'absent') return `${item.keyPath} — no file at this path`
+    if (item.state === 'denied') return `${item.keyPath} — file cannot be read`
+    return item.keyPath
+  }
   // A broken config file is the case worth reading from across the room, and
   // its position is worth more than its key count.
   if (item.state === 'malformed') return item.line
@@ -61,11 +67,6 @@ function meta(item) {
     : 'invalid JSON — the parser did not say where'
   if (item.kind === 'settings') return `${item.keys} keys`
   if (item.kind === 'mcp') return `${item.servers} servers`
-  if (item.kind === 'hookScript' || item.kind === 'statusLineScript') {
-    if (item.state === 'absent') return `${item.keyPath} — no file at this path`
-    if (item.state === 'denied') return `${item.keyPath} — file cannot be read`
-    return item.keyPath
-  }
   // The band header already names the plugin, so the description is all that
   // is left worth showing on the row.
   if (item.kind === 'skill' || item.kind === 'agent' || item.kind === 'command') {
@@ -104,7 +105,10 @@ export function bandsFor(items) {
         label: owner ?? 'read-only',
         // The label already names the owner; repeating it in the note just
         // filled the row with the same word twice.
-        note: owner ? null : 'read-only',
+        // Stated once, here, for the whole band. It used to be stated here AND
+        // on every row inside, which on a plugin-heavy machine meant the word
+        // appearing dozens of times below a header that had already said it.
+        note: 'read-only',
         items: [],
       })
     }
@@ -154,7 +158,8 @@ function useOpen(key, fallback) {
 // render: those are facts about one row, not a restatement of the band.
 function Chips({ item, showWritability = true }) {
   const out = []
-  if (item.broken) out.push(['broken', s.alarm])
+  if (item.inline) out.push(['inline', s.locked])
+  else if (item.broken) out.push(['broken', s.alarm])
   else if (item.state === 'malformed') out.push(['malformed', s.alarm])
   else if (item.state && item.state !== 'ok') out.push([item.state, s.caution])
   if (item.malformed) out.push(['malformed', s.alarm])
@@ -169,7 +174,7 @@ function Chips({ item, showWritability = true }) {
   // wording stays in the conditional — "can" — because a text scan cannot know
   // what the script did, only what it is able to do.
   for (const c of item.capabilities ?? []) out.push([c.label, s.caution])
-  if (showWritability) {
+  if (showWritability && item.ownScript !== false) {
     const cls = item.writability.class
     out.push([CLASS_LABEL[cls] ?? cls, CLASS_CHIP[cls] ?? s.locked])
   }
