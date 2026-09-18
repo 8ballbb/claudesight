@@ -9,6 +9,7 @@ import { readMarkdownKind } from './readers/markdown.js'
 import { classify } from './writability.js'
 import { readJsonSafe, readDirSafe } from './fsread.js'
 import { isOurs } from './sidecar.js'
+import { artifactDirs, memoryDirs } from './ancestors.js'
 
 const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').slice(0, 16)
 
@@ -72,17 +73,35 @@ export function buildProjectInventory(projectPath) {
   }
 
   // Every documented project memory location, each with its imports resolved.
+  //
+  // Claude Code loads CLAUDE.md and CLAUDE.local.md from the launch directory
+  // AND every directory above it, all concatenated. Reading only the launch
+  // directory meant a CLAUDE.md one level up — in the context of every single
+  // session — was absent from the page that exists to list what is loaded.
+  // This walk deliberately does not stop at the repository root, because
+  // CLAUDE.md loading does not stop there either.
   const memoryItems = []
-  for (const rel of ['CLAUDE.md', 'CLAUDE.local.md', path.join('.claude', 'CLAUDE.md')]) {
-    const node = readMemory(path.join(projectPath, rel))
-    if (node.state === 'absent') continue
-    for (const n of flattenMemory(node)) {
-      memoryItems.push({
-        path: n.path,
-        label: path.relative(projectPath, n.path),
-        bytes: n.bytes,
-        state: n.state,
-      })
+  const seenMemory = new Set()
+  for (const dir of memoryDirs(projectPath)) {
+    const own = dir === path.resolve(projectPath)
+    const rels = own
+      ? ['CLAUDE.md', 'CLAUDE.local.md', path.join('.claude', 'CLAUDE.md')]
+      : ['CLAUDE.md', 'CLAUDE.local.md']
+    for (const rel of rels) {
+      const node = readMemory(path.join(dir, rel))
+      if (node.state === 'absent') continue
+      for (const n of flattenMemory(node)) {
+        if (seenMemory.has(n.path)) continue
+        seenMemory.add(n.path)
+        memoryItems.push({
+          path: n.path,
+          label: own ? path.relative(projectPath, n.path) : path.relative(dir, n.path),
+          bytes: n.bytes,
+          state: n.state,
+          declaredIn: dir,
+          fromAncestor: !own,
+        })
+      }
     }
   }
   add('memory', memoryItems)
@@ -114,14 +133,34 @@ export function buildProjectInventory(projectPath) {
     column: mcp.column ?? null,
   }])
 
+  // Claude Code loads project skills, agents and commands from the launch
+  // directory and every parent up to the REPOSITORY ROOT — not beyond it, and
+  // where a name collides the definition closest to the launch directory wins.
+  // Listing both would report a skill that is shadowed and never loads, which
+  // is the same lie as omitting one that does.
+  const nearestFirst = artifactDirs(projectPath)
+
   // readSkills expects a root holding skills/ — a project's .claude/ is that.
-  const sk = readSkills(dotClaude)
-  denied.push(...sk.denied)
-  errors.push(...sk.errors)
-  add('skill', sk.skills.map((x) => ({
-    path: x.path, label: x.name, description: x.description,
-    origin: 'project', malformed: x.malformed, unreadable: x.unreadable,
-  })))
+  const skillRows = []
+  const skillByName = new Map()
+  for (const dir of nearestFirst) {
+    const own = dir === path.resolve(projectPath)
+    const sk = readSkills(path.join(dir, '.claude'))
+    denied.push(...sk.denied)
+    errors.push(...sk.errors)
+    for (const x of sk.skills) {
+      const winner = skillByName.get(x.name)
+      if (winner) { winner.shadows.push(x.path); continue }
+      const row = {
+        path: x.path, label: x.name, description: x.description,
+        origin: 'project', malformed: x.malformed, unreadable: x.unreadable,
+        declaredIn: dir, fromAncestor: !own, shadows: [],
+      }
+      skillByName.set(x.name, row)
+      skillRows.push(row)
+    }
+  }
+  add('skill', skillRows)
 
   // Markdown-defined kinds: a flat directory of .md files, or nested for rules.
   const markdownAt = (dir, depth) => {
@@ -150,8 +189,25 @@ export function buildProjectInventory(projectPath) {
   const manifest = readJsonSafe(path.join(projectPath, '.claude-plugin', 'plugin.json'))
   const isPluginSource = manifest.state !== 'absent'
 
-  add('agent', [...markdownIn('agents', 1), ...(isPluginSource ? markdownAt(path.join(projectPath, 'agents'), 1) : [])])
-  add('command', [...markdownIn('commands', 1), ...(isPluginSource ? markdownAt(path.join(projectPath, 'commands'), 2) : [])])
+  // Same walk, same closest-wins rule, for the markdown-defined kinds.
+  const acrossDirs = (rel, depth) => {
+    const rows = []
+    const byName = new Map()
+    for (const dir of nearestFirst) {
+      const own = dir === path.resolve(projectPath)
+      for (const found of markdownAt(path.join(dir, '.claude', rel), depth)) {
+        const winner = byName.get(found.label)
+        if (winner) { winner.shadows.push(found.path); continue }
+        const row = { ...found, declaredIn: dir, fromAncestor: !own, shadows: [] }
+        byName.set(found.label, row)
+        rows.push(row)
+      }
+    }
+    return rows
+  }
+
+  add('agent', [...acrossDirs('agents', 1), ...(isPluginSource ? markdownAt(path.join(projectPath, 'agents'), 1) : [])])
+  add('command', [...acrossDirs('commands', 2), ...(isPluginSource ? markdownAt(path.join(projectPath, 'commands'), 2) : [])])
   add('rule', markdownIn('rules', 3))
 
   if (isPluginSource) {

@@ -129,7 +129,7 @@ contained four wrong paths and omitted eleven artifacts present on this machine.
 | `settings` | `~/.claude/settings.json` | `.claude/settings.json`, `.claude/settings.local.json` | |
 | `managedSettings` | §6.1 ranked sources | — | four sources, not one |
 | `managedMemory` | `<managed dir>/CLAUDE.md` + `claudeMd` key | — | **cannot be excluded by user settings** |
-| `memory` | `~/.claude/CLAUDE.md` | `CLAUDE.md`, `./.claude/CLAUDE.md`, `CLAUDE.local.md`, **and every ancestor dir to repo root** | `@`-imports depth 4; `claudeMdExcludes` |
+| `memory` | `~/.claude/CLAUDE.md` | `CLAUDE.md`, `./.claude/CLAUDE.md`, `CLAUDE.local.md`, **and every ancestor dir, past the repo root** | `@`-imports depth 4; `claudeMdExcludes` |
 | `autoMemory` | `~/.claude/projects/<project>/memory/{MEMORY.md,*.md}` | — | relocatable via `autoMemoryDirectory`; **subtree of the session root** |
 | `agentMemory` | `~/.claude/agent-memory/` | `.claude/agent-memory/`, `.claude/agent-memory-local/` | three variants by `memory:` frontmatter |
 | `skill` | `~/.claude/skills/`, **`~/.claude/skills/synced/`** | `.claude/skills/` + nested + ancestors | `synced/` is claude.ai-sourced ⇒ Redirect class |
@@ -710,6 +710,33 @@ real-machine verification:
     on and the registry does not. A push touching only docs, tests or CI publishes nothing.
     Below 1.0.0 a breaking change is a minor bump: declaring stability is a decision, not a
     consequence of punctuation.
+
+**Revision 8 — 2026-09-18.** Ancestor configuration implemented; the boundary settled.
+
+22. **Ancestor loading was specified and never built, and the divergence was never
+    recorded.** §4.1 said project artifacts load from ancestor directories; the reader
+    only ever looked at the launch directory. This rule says the disagreement should be
+    settled and written down, and for three revisions it was neither. It is settled here
+    in favour of the spec, because the documented behaviour of Claude Code is that the
+    files really are loaded, and a page listing what is loaded that omits them is the
+    bare-zero failure at directory scale.
+23. **The two boundaries are different, and the spec had both wrong.** Taken from the
+    Claude Code documentation rather than assumed: `.claude/skills`, `.claude/agents` and
+    `.claude/commands` are read from the launch directory and every parent **up to the
+    repository root**, and where a name collides the definition closest to the launch
+    directory wins. `CLAUDE.md` and `CLAUDE.local.md` are read from the launch directory
+    and **every parent above it**, past the repository root, all concatenated with none
+    overriding another. The spec previously said "to repo root" for memory, which is too
+    narrow, and left the artifact boundary vague. A shadowed definition is not listed as
+    a separate row — it never loads — but the row that beat it says how many it shadows,
+    so nothing disappears silently.
+24. **An artifact's root travels with it.** Project rows were classified against the
+    project directory and written against the global config root, so every project file
+    was advertised editable and every save refused as "Outside the Claude configuration
+    root". Project editing had never worked. The lookup table now carries the root each
+    row was judged by, and the regression test is the general invariant rather than the
+    instance: for every row an inventory advertises, the writer's verdict must equal the
+    verdict the page showed.
 
 Open: none blocking. The name is settled: `claudesight` throughout — the command, the
 repository and the npm package, verified obtainable before it was adopted.

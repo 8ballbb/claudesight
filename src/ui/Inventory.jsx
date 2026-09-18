@@ -172,6 +172,16 @@ function Chips({ item, showWritability = true }) {
     out.push([`manifest ${item.manifestState}`, s.alarm])
   }
   if (item.enabled === false) out.push(['disabled', s.locked])
+  // Loaded from a parent directory, not this project. Without this the row
+  // reads as a file that lives here, and the directory you would actually
+  // edit is the one piece of information the reader needs.
+  if (item.fromAncestor) {
+    const from = String(item.declaredIn ?? '').split('/').filter(Boolean).pop()
+    out.push([from ? `inherited from ${from}` : 'inherited', s.caution])
+  }
+  // A definition closer to the project wins, and the ones it beat would
+  // otherwise vanish from the page entirely.
+  if (item.shadows?.length) out.push([`shadows ${item.shadows.length}`, s.caution])
   // What a hook script CAN do to a tool call, read off its own body. The
   // wording stays in the conditional — "can" — because a text scan cannot know
   // what the script did, only what it is able to do.
