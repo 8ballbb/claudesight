@@ -47,6 +47,18 @@ If you add Linux or Windows: start from the `folder` mechanism in `src/server/tr
 relax the guard in `bin/claudesight.js`, **and add CI that runs the suite on that platform
 in the same change.** A platform without CI is a claim nobody has checked.
 
+## Screenshots
+
+The two images in the README come from a fabricated configuration, never from a real
+machine. `scripts/demo-config.mjs <empty-dir>` builds it and prints the command to serve
+it; it refuses a directory that is not empty, and refuses anything under a `.claude`
+path. The fixture is chosen to exercise what the UI has to say — a hook whose script is
+missing, an inline hook, a hook that can auto-approve, a plugin whose manifest disagrees
+with the installed version, a plugin enabled but never installed, a monorepo package
+that inherits from its repository root, an MCP server that is not on PATH, and a
+remembered directory that is gone. If you change what a row says, regenerate both
+images.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every push and pull request: lint, the suite on Node 20

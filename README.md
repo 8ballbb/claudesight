@@ -29,14 +29,19 @@ Or from a clone, which is what you want if you intend to change anything:
     npm install        # also builds the UI
     npm start
 
-![The global view: artifacts grouped by kind and banded by owner, with a hook whose script is missing flagged as broken](docs/img/global.jpg)
+![The global view: artifacts grouped by kind, with a hook whose script is missing flagged as broken, an inline hook that names no script, a hook that can auto-approve, and a notice naming a plugin that is enabled but not installed](docs/img/global.jpg)
 
 ## What it shows
 
 **Global** — your memory files with `@`-imports resolved, `settings.json`, the hook and
-statusline scripts those settings execute, skills, agents, commands, and installed
+statusline scripts those settings execute, skills, agents, commands, rules, and installed
 plugins with drift status. Most of these arrive from plugins rather than from your own
 directories, which is why tools that only read `~/.claude/skills` report nothing.
+
+Also the prompt behind each Claude Desktop scheduled task, from
+`~/.claude/scheduled-tasks/`. Only the prompt is in that file — the schedule, folder and
+model are Desktop's own state — so every row says so rather than implying the app knows
+when the task runs.
 
 **Projects** — every directory Claude Code has actually run in, found by reading the
 project registry, your prompt history and session transcripts. No filesystem scan. Each
@@ -44,10 +49,37 @@ project shows its own memory, settings, MCP servers, skills, agents, commands, r
 the hook scripts its settings execute. A repo that publishes a plugin is read in that
 layout too, since its artifacts live at the repo root rather than under `.claude/`.
 
+**Configuration inherited from parent directories is listed too**, because Claude Code
+loads it. The two boundaries differ and both are taken from the documented behaviour:
+`.claude/skills`, `agents` and `commands` are read up to the repository root, closest
+name winning; `CLAUDE.md` and `CLAUDE.local.md` are read from every parent above that as
+well. An inherited row names the directory it came from — the one you would actually
+edit — and a definition that beat others to its name says how many it shadows.
+
+A project whose directory no longer exists is hidden behind a count you can open. It is
+never cleaned up: `gone` means "not there right now", which is also what an unmounted
+volume and a removed worktree look like.
+
 Items are grouped by kind and banded by owner, because ownership is what decides whether
 you can change a thing. Everything starts folded; what you expand is remembered.
 
-![The projects view: discovered projects on the left, the selected project's artifacts on the right](docs/img/projects.jpg)
+![The projects view: discovered projects on the left, the selected package on the right — a CLAUDE.md inherited from the repository root, and an MCP server whose command is not on PATH flagged as broken](docs/img/projects.jpg)
+
+## Adding artifacts
+
+Four kinds can be created, at either scope: `CLAUDE.md`, a rule, a skill, and a subagent.
+Each asks for only what it needs — a rule for a name, a skill and a subagent for a
+description as well, `CLAUDE.md` for nothing, since its filename is fixed. What is written
+is the minimum valid file and nothing more: no `permissionMode`, no `hooks`, and no
+`paths:` filter on a rule, which would quietly scope it to files you never named. The
+scaffold is saved as the file's first version, so you can always get back to it.
+
+Commands are deliberately **not** creatable, although the app lists the ones you have.
+Claude Code's documentation marks `.claude/commands/*.md` deprecated in favour of skills,
+and a creator that steers you onto a deprecated mechanism is worse than no creator.
+Hook scripts are not creatable either — writing a file that runs as shell is the riskiest
+act in this family. A scheduled task's prompt can be edited but a task cannot be created:
+its schedule and folder live in Claude Desktop, so the file alone would not make one.
 
 ## What it refuses to do
 
@@ -67,6 +99,13 @@ still fires it. A `settings.json` or `.mcp.json` that will not parse keeps its r
 reports the parse position, or says the parser did not give one rather than guessing. A
 directory that could not be read is named, not counted. A plugin whose installed version
 differs from its manifest says which is which.
+
+The same goes for configuration that points at something absent. Every MCP server in a
+`.mcp.json` gets its own row saying whether its command could be found — with three
+answers, not two: found, searched-for-and-absent, and *unknown* where no answer is
+possible, such as a server addressed by URL. A plugin switched on in `settings.json` but
+not installed is named, since nothing loads for it. A setting a managed policy overrides
+says so, because yours will never take effect.
 
 ## Editing
 
@@ -95,7 +134,9 @@ size limit — it says so and why, and is never reported as "no change".
   driving this API; see §9.2 of the spec for why there is no secret in the URL.
 - No outbound requests. No telemetry, no account, no cloud, no LLM calls.
 - Writing a file that Claude Code executes as shell requires a second confirmation
-  naming the exact command, bound by HMAC to that file and that content.
+  naming the exact command, bound by HMAC to that file and that content. That covers
+  markdown as well as JSON: a subagent's frontmatter can declare `hooks`, or turn the
+  approval prompt off, and those take the same confirmation.
 - Every write is backed up beside the original at mode `0600`, under a lockfile, with a
   compare-and-swap against the on-disk content.
 
@@ -108,7 +149,8 @@ size limit — it says so and why, and is never reported as "no change".
 
 Node 20 or later, on macOS.
 
-> Screenshots use a fabricated configuration, not a real one.
+> Screenshots use a fabricated configuration, not a real one. Regenerate it with
+> `node scripts/demo-config.mjs <empty-dir>`, which prints the command to serve it.
 
 [![CI](https://github.com/8ballbb/claudesight/actions/workflows/ci.yml/badge.svg)](https://github.com/8ballbb/claudesight/actions/workflows/ci.yml)
 

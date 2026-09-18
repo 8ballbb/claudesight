@@ -115,3 +115,67 @@ describe('the docs describe this project, accurately', () => {
     expect(readme).not.toMatch(/#\s*\d+ tests/)
   })
 })
+
+// Claims that drift silently when behaviour changes. Each one was true when
+// written and would have quietly become false: the README said only skills
+// could be created for three releases after that stopped being so.
+describe('claims the docs make about behaviour', () => {
+  const security = fs.readFileSync('SECURITY.md', 'utf8')
+
+  // Scoped to the section that makes the claim. Matching the whole README
+  // was vacuous: "a skill" and "CLAUDE.md" appear all over it, so the test
+  // passed with the sentence deleted. Caught by reverting the claim and
+  // watching it stay green.
+  const section = (heading) => {
+    const start = readme.indexOf(`## ${heading}`)
+    if (start === -1) return ''
+    const next = readme.indexOf('\n## ', start + 1)
+    return readme.slice(start, next === -1 ? undefined : next)
+  }
+
+  it('names every kind that can actually be created, and no others', async () => {
+    const { CREATABLE } = await import('../src/server/create.js')
+    const adding = section('Adding artifacts')
+    expect(adding, 'README needs an "Adding artifacts" section').not.toBe('')
+    const named = {
+      memory: /`CLAUDE\.md`/.test(adding),
+      rule: /\ba rule\b/.test(adding),
+      skill: /\ba skill\b/.test(adding),
+      agent: /\ba subagent\b/.test(adding),
+    }
+    for (const kind of CREATABLE) {
+      expect(named[kind], `the "Adding artifacts" section should name ${kind}`).toBe(true)
+    }
+    expect(adding, 'must not offer to create commands').not.toMatch(/create a command\b/i)
+  })
+
+  it('still says commands are deprecated, which is why they are not creatable', () => {
+    expect(readme).toMatch(/commands.{0,80}deprecated|deprecated.{0,80}commands/is)
+  })
+
+  it('quotes the port the server actually defaults to', async () => {
+    const { DEFAULT_PORT } = await import('../src/server/index.js')
+    expect(readme, `README should quote port ${DEFAULT_PORT}`).toContain(String(DEFAULT_PORT))
+  })
+
+  it('lists the runtime dependencies this package actually has', () => {
+    for (const dep of Object.keys(pkg.dependencies)) {
+      expect(security, `SECURITY.md should name the runtime dependency ${dep}`)
+        .toContain(`\`${dep}\``)
+    }
+  })
+
+  it('does not still say the confirmation gate is only for JSON', () => {
+    // The gate reads markdown frontmatter too; saying otherwise understates
+    // what the app protects you from.
+    expect(security).toMatch(/frontmatter/i)
+  })
+
+  it('points only at files that exist', () => {
+    const referenced = [...readme.matchAll(/\(([A-Za-z0-9_./-]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
+    for (const rel of referenced) {
+      if (rel.startsWith('http')) continue
+      expect(fs.existsSync(rel), `README points at ${rel}, which does not exist`).toBe(true)
+    }
+  })
+})
