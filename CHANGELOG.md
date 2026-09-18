@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0 — 2026-09-18
+
+### Added
+
+- hide projects whose directory is gone, without deleting anything
+
 ## v0.4.0 — 2026-09-18
 
 ### Added
