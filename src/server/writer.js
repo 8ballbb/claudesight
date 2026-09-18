@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { classify } from './writability.js'
-import { execChanges } from './execgate.js'
+import { execChanges, capabilityChanges } from './execgate.js'
 import { backupName, lockName, tempName, isBackupOf } from './sidecar.js'
 
 const hash = (buf) => crypto.createHash('sha256').update(buf).digest('hex')
@@ -125,15 +125,24 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
     }
   }
 
+  let changes = []
   if (parsedAfter !== null) {
     let parsedBefore = {}
     try { parsedBefore = JSON.parse(fs.readFileSync(target, 'utf8')) } catch { /* treat as empty */ }
-    const changes = execChanges(parsedBefore, parsedAfter)
-    if (changes.length > 0) {
-      const expected = confirmTokenFor(target, content)
-      if (!confirmTokenMatches(confirmToken, expected)) {
-        return { ok: false, error: 'confirmation_required', changes, confirmToken: expected }
-      }
+    changes = execChanges(parsedBefore, parsedAfter)
+  } else if (target.endsWith('.md')) {
+    // A subagent's frontmatter can declare hooks or turn off the approval
+    // prompt. Those are the capabilities the JSON branch above exists for,
+    // reached through a file it never looked at.
+    let textBefore = ''
+    try { textBefore = fs.readFileSync(target, 'utf8') } catch { /* new file */ }
+    changes = capabilityChanges(textBefore, content)
+  }
+
+  if (changes.length > 0) {
+    const expected = confirmTokenFor(target, content)
+    if (!confirmTokenMatches(confirmToken, expected)) {
+      return { ok: false, error: 'confirmation_required', changes, confirmToken: expected }
     }
   }
 

@@ -74,3 +74,61 @@ export function execChanges(before, after) {
   }
   return changes
 }
+
+// ── markdown frontmatter ────────────────────────────────────────────────────
+// A subagent file is markdown, so it never reached the JSON gate above — yet
+// its YAML frontmatter can carry `hooks:`, which Claude Code runs as shell,
+// and `permissionMode: bypassPermissions`, which stops it asking at all. Those
+// are the same capabilities settings.json is gated for, reachable through a
+// file the gate did not look at.
+//
+// This is a line scan, not a YAML parser, and it claims no more than a scan
+// can know — the same footing as capabilitiesOf() in readers/settings.js. It
+// reads only the frontmatter block, so prose in the body is never mistaken for
+// configuration.
+
+export function frontmatterOf(text) {
+  if (typeof text !== 'string') return ''
+  if (!text.startsWith('---')) return ''
+  const rest = text.slice(text.indexOf('\n') + 1)
+  const end = rest.search(/^---\s*$/m)
+  if (end === -1) return ''
+  return rest.slice(0, end)
+}
+
+// Permission modes that stop Claude Code asking before it acts. `plan`,
+// `default` and `manual` still prompt, so they are not capability changes.
+const SILENT_MODES = new Set(['bypassPermissions', 'dontAsk'])
+
+function capabilitiesIn(text) {
+  const found = new Map()
+  for (const raw of frontmatterOf(text).split('\n')) {
+    const line = raw.trimEnd()
+    if (/^\s*#/.test(line)) continue
+    if (/^hooks\s*:/.test(line)) found.set('hooks', 'declared')
+    const mode = /^permissionMode\s*:\s*(["']?)([A-Za-z]+)\1\s*$/.exec(line)
+    if (mode && SILENT_MODES.has(mode[2])) found.set('permissionMode', mode[2])
+  }
+  return found
+}
+
+// What this change ADDS. A capability already present and unchanged is not
+// re-confirmed: the gate is for the moment a capability appears or changes,
+// not a toll on every later edit.
+export function capabilityChanges(before, after) {
+  const was = capabilitiesIn(before)
+  const now = capabilitiesIn(after)
+  const out = []
+  for (const [key, value] of now) {
+    if (was.get(key) === value) continue
+    out.push({
+      keyPath: key,
+      before: was.get(key) ?? null,
+      after: value,
+      reason: key === 'hooks'
+        ? 'declares hooks — shell commands Claude Code runs'
+        : 'turns off the approval prompt',
+    })
+  }
+  return out
+}
