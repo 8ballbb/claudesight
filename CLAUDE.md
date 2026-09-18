@@ -84,6 +84,19 @@ an empty list means "nothing found by reading". The fixed "Not checked" line und
 scripts group exists for the same reason: nothing here is executed, and a clean list must
 never read as a clean bill of health.
 
+**The product name is written down once, in `src/server/sidecar.js`.** Everything
+this app writes beside a user's file — backup, lock, temp — takes its name from there.
+It used to be spelled into four separate template literals in writer.js, the rename
+missed all four, and every save left a `.atlas-` file in the user's config directory;
+the project reader, which lists anything it does not recognise, then reported that
+backup back to the user as an unidentified artifact. The reader now recognises what
+the writer produces by construction, the former name survives only as a legacy entry
+so old backups keep being pruned, and `tests/sidecar-naming.test.js` scans `src/` and
+`bin/` for the bare word. Note why the previous guard missed it: it scanned
+documentation only, and matched the hyphenated spelling of the old name. Three renames have now
+been broken by a name fragment hiding inside a string — a middle dot, a URL, a file
+prefix. Grep for the bare word, in the code, not just the prose.
+
 **Version ids must stay sortable.** They were `<ISO timestamp>-<random hex>` and the list
 is sorted by id as a string, so two snapshots inside one millisecond ordered at random —
 which made "newest first" wrong and `listVersions()[0]` an unreliable answer to "what did

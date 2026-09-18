@@ -3,6 +3,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { classify } from './writability.js'
 import { execChanges } from './execgate.js'
+import { backupName, lockName, tempName, isBackupOf } from './sidecar.js'
 
 const hash = (buf) => crypto.createHash('sha256').update(buf).digest('hex')
 
@@ -49,9 +50,8 @@ function hasSymlinkComponent(target, root) {
 function pruneBackups(target) {
   const dir = path.dirname(target)
   const base = path.basename(target)
-  const prefix = `${base}.atlas-`
   const siblings = fs.readdirSync(dir)
-    .filter((name) => name.startsWith(prefix) && name.endsWith('.bak'))
+    .filter((name) => isBackupOf(name, base))
     .sort()
     .reverse()
   for (const stale of siblings.slice(10)) {
@@ -61,7 +61,7 @@ function pruneBackups(target) {
 
 function backupBeside(target) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const dest = `${target}.atlas-${stamp}.bak`
+  const dest = backupName(target, stamp)
   const fd = fs.openSync(dest, 'wx', 0o600)
   try {
     fs.writeFileSync(fd, fs.readFileSync(target))
@@ -137,7 +137,7 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
     }
   }
 
-  const lock = `${target}.atlas-lock`
+  const lock = lockName(target)
   let lockFd
   const claimLock = () => fs.openSync(lock, 'wx')
   try {
@@ -169,7 +169,7 @@ export function writeArtifact({ target, content, etag, kind, root, confirmToken 
     }
 
     const backup = backupBeside(target)
-    const tmp = path.join(path.dirname(target), `.atlas-tmp-${process.pid}-${Date.now()}`)
+    const tmp = path.join(path.dirname(target), tempName(process.pid, Date.now()))
     const tmpFd = fs.openSync(tmp, 'wx', st.mode & 0o777)
     try {
       fs.writeFileSync(tmpFd, content)

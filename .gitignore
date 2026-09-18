@@ -1,6 +1,9 @@
 node_modules/
 dist/
 .DS_Store
+*.claudesight-*.bak
+*.claudesight-lock
+# left by releases before the rename
 *.atlas-*.bak
 release-notes.md
 .lint-fixture/

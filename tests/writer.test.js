@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { readForEdit, writeArtifact } from '../src/server/writer.js'
+import { lockName } from '../src/server/sidecar.js'
 
 let root, target
 beforeEach(() => {
@@ -103,7 +104,7 @@ describe('writeArtifact', () => {
 
   it('releases the lockfile after a successful write', () => {
     edit()
-    expect(fs.existsSync(target + '.atlas-lock')).toBe(false)
+    expect(fs.existsSync(lockName(target))).toBe(false)
   })
 
   it('refuses a confirmation token issued for different content', () => {
@@ -197,9 +198,9 @@ describe('writeArtifact', () => {
   it('reclaims a stale lockfile', () => {
     const f = path.join(root, 'CLAUDE.md')
     fs.writeFileSync(f, 'original\n')
-    fs.writeFileSync(`${f}.atlas-lock`, JSON.stringify({ pid: 999999, at: Date.now() - 120_000 }))
+    fs.writeFileSync(lockName(f), JSON.stringify({ pid: 999999, at: Date.now() - 120_000 }))
     const r = writeArtifact({ target: f, content: 'updated\n', etag: readForEdit(f).etag, kind: 'memory', root })
     expect(r.ok).toBe(true)
-    expect(fs.existsSync(`${f}.atlas-lock`)).toBe(false)
+    expect(fs.existsSync(lockName(f))).toBe(false)
   })
 })

@@ -8,6 +8,7 @@ import { readPlugins } from './readers/plugins.js'
 import { readMarkdownKind } from './readers/markdown.js'
 import { classify } from './writability.js'
 import { readJsonSafe, readDirSafe } from './fsread.js'
+import { isOurs } from './sidecar.js'
 
 const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').slice(0, 16)
 
@@ -201,7 +202,10 @@ export function buildProjectInventory(projectPath) {
   ])
   const rest = readDirSafe(dotClaude)
   add('other', rest.state !== 'ok' ? [] : rest.value
-    .filter((e) => !CONSUMED.has(e.name))
+    // Our own backups and locks are not things the user put here, and
+    // listing them as artifacts we cannot identify meant the app dropped a
+    // file into the directory and then reported it back as a mystery.
+    .filter((e) => !CONSUMED.has(e.name) && !isOurs(e.name))
     .map((e) => {
       const full = path.join(dotClaude, e.name)
       let size = null
