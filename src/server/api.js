@@ -61,8 +61,12 @@ export function buildProjectInventory(projectPath) {
     const items = entries.map((e) => {
       const kind = e.artifactKind ?? groupKind
       const id = handleFor(e.path)
-      table.set(id, { path: e.path, kind })
-      return { id, kind, ...e, writability: classify({ path: e.path, kind, root: projectPath }) }
+      // The root an artifact is judged by travels with it. The write route
+      // used to judge everything against the global config root, so every
+      // project file was advertised editable here and refused there.
+      const itemRoot = e.declaredIn ?? projectPath
+      table.set(id, { path: e.path, kind, root: itemRoot })
+      return { id, kind, ...e, writability: classify({ path: e.path, kind, root: itemRoot }) }
     })
     groups.push({ kind: groupKind, items })
   }
@@ -166,7 +170,7 @@ export function buildProjectInventory(projectPath) {
       if (g.kind !== 'skill') continue
       for (const x of repoSkills.skills) {
         const id = handleFor(x.path)
-        table.set(id, { path: x.path, kind: 'skill' })
+        table.set(id, { path: x.path, kind: 'skill', root: projectPath })
         g.items.push({
           id, kind: 'skill', path: x.path, label: x.name, description: x.description,
           origin: 'plugin-source', malformed: x.malformed, unreadable: x.unreadable,
@@ -240,7 +244,7 @@ export function buildInventory(root) {
     const items = entries.map((e) => {
       const kind = e.artifactKind ?? groupKind
       const id = handleFor(e.path)
-      table.set(id, { path: e.path, kind })
+      table.set(id, { path: e.path, kind, root })
       return { id, kind, ...e, writability: classify({ path: e.path, kind, root }) }
     })
     groups.push({ kind: groupKind, items })

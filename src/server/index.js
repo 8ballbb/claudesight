@@ -137,7 +137,10 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
             content: body.content,
             etag: body.etag,
             kind: entry.kind,
-            root,
+            // The root the row was classified under, not the global one: a
+            // project file judged against ~/.claude reads as foreign and is
+            // refused, after the page has already called it editable.
+            root: entry.root ?? root,
             confirmToken: body.confirmToken,
           })
           return json(res, result.ok ? 200 : 409, result)
