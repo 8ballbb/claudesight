@@ -37,6 +37,17 @@ describe('bandsFor', () => {
     expect(band).toMatchObject({ label: 'spyglass', note: 'read-only' })
   })
 
+  it('never says read-only twice in one band header', () => {
+    // Regression, twice over: first the note duplicated the label on unowned
+    // bands, then fixing the per-row chips reintroduced it by setting the note
+    // unconditionally. The property is that label and note never both carry it.
+    for (const extra of [{ plugin: 'spyglass' }, {}]) {
+      const [band] = bandsFor([item('a', 'redirect', extra)])
+      const said = [band.label, band.note].filter((t) => t === 'read-only')
+      expect(said, `band "${band.label}" says read-only ${said.length} times`).toHaveLength(1)
+    }
+  })
+
   it('falls back to the marketplace when there is no plugin — plugins themselves', () => {
     const [band] = bandsFor([item('spyglass', 'redirect', { marketplace: 'spyglass-mp' })])
     expect(band.label).toBe('spyglass-mp')
@@ -45,7 +56,9 @@ describe('bandsFor', () => {
   it('never drops a read-only item that has no owner at all', () => {
     const bands = bandsFor([item('managed.json', 'readonly'), item('sess', 'guarded')])
     expect(bands).toHaveLength(1)
-    expect(bands[0]).toMatchObject({ label: 'read-only', note: 'read-only' })
+    // The label already carries it; the note used to repeat it, so the header
+    // read "read-only  2  read-only".
+    expect(bands[0]).toMatchObject({ label: 'read-only', note: null })
     expect(bands[0].items).toHaveLength(2)
   })
 

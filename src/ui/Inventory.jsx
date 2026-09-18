@@ -105,10 +105,12 @@ export function bandsFor(items) {
         label: owner ?? 'read-only',
         // The label already names the owner; repeating it in the note just
         // filled the row with the same word twice.
-        // Stated once, here, for the whole band. It used to be stated here AND
-        // on every row inside, which on a plugin-heavy machine meant the word
-        // appearing dozens of times below a header that had already said it.
-        note: 'read-only',
+        // Stated exactly once per band: through the note when the label is an
+        // owner's name, through the label itself when there is no owner. It
+        // used to be repeated on every row inside as well; setting it
+        // unconditionally here brought back a different duplication, where an
+        // unowned band read "read-only  3  read-only".
+        note: owner ? 'read-only' : null,
         items: [],
       })
     }

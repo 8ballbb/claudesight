@@ -150,6 +150,47 @@ describe('the limits of reading a hook without running it', () => {
   })
 })
 
+describe('hook rows say true things about themselves', () => {
+  // All three of these were found by looking at the page, not by the suite.
+  const hookRow = (over = {}) => item({
+    kind: 'hookScript', keyPath: 'hooks.PreToolUse.0.hooks.0.command',
+    writability: { class: 'exec', reason: 'executable' }, ...over,
+  })
+  const open = (row) => {
+    render(<Inventory inv={{ groups: [group('scripts', [row])] }} />)
+    fireEvent.click(screen.getByText(/scripts/i))
+  }
+
+  it('explains an unwalkable declaration in its own words, not as a JSON parse error', () => {
+    // meta() checked malformed before it checked the kind, so a hooks block of
+    // the wrong shape was described as "invalid JSON — the parser did not say
+    // where". The settings file parsed perfectly.
+    open(hookRow({
+      label: 'hooks.SessionStart', keyPath: 'hooks.SessionStart', state: 'malformed',
+      broken: true, ownScript: false, reason: 'the value here is not a list of matchers',
+    }))
+    expect(screen.getByText(/not a list of matchers/)).toBeTruthy()
+    expect(screen.queryByText(/invalid JSON/)).toBeNull()
+  })
+
+  it('does not call a row executable when it has no script of its own', () => {
+    // These rows point at settings.json, which is not a script.
+    open(hookRow({ label: 'hooks.PostToolUse', inline: true, state: 'not-declared', ownScript: false }))
+    expect(screen.queryByText('executable')).toBeNull()
+  })
+
+  it('says "inline" rather than leaking the reader\'s word for it', () => {
+    open(hookRow({ label: 'hooks.PostToolUse', inline: true, state: 'not-declared', ownScript: false }))
+    expect(screen.getByText('inline')).toBeTruthy()
+    expect(screen.queryByText('not-declared')).toBeNull()
+  })
+
+  it('still calls a real script executable', () => {
+    open(hookRow({ label: 'guard.sh', state: 'ok', ownScript: true }))
+    expect(screen.getByText('executable')).toBeTruthy()
+  })
+})
+
 describe('what the inventory renders', () => {
   it('opens no group by default', () => {
     render(<Inventory inv={{ groups: [group('memory', [item({ label: 'CLAUDE.md' })])] }} />)
