@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.1 — 2026-09-18
+
+### Fixed
+
+- say "read-only" once per group, not once per band
+- report settings.json's state even when no plugins are installed
+- name what we write beside your files after this product
+
 ## v0.3.0 — 2026-09-18
 
 ### Added
