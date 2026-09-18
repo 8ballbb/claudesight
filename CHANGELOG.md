@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.1 — 2026-09-18
+
+### Fixed
+
+- give every row its own id, so one click does not select three
+
+### Documentation
+
+- describe what the app actually does now
+
 ## v0.6.0 — 2026-09-18
 
 ### Added
