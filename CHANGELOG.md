@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.0 — 2026-09-18
+
+### Added
+
+- add CLAUDE.md, rules, skills and subagents at both scopes
+- show user rules and Desktop scheduled tasks
+
+### Fixed
+
+- gate a subagent's frontmatter the way settings.json is gated
+
 ## v0.5.0 — 2026-09-18
 
 ### Added
