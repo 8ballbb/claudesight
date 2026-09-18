@@ -206,7 +206,7 @@ function Rows({ items, openId, onOpen, showWritability = true }) {
 
 // Everything starts folded. The page opens as a table of contents; what you
 // expand is remembered, so the layout you arrange is the one you come back to.
-function Band({ band, stateKey, openId, onOpen }) {
+function Band({ band, stateKey, openId, onOpen, showNote = true }) {
   const mine = band.key === 'yours'
   const [open, toggle] = useOpen(stateKey, false)
   const bodyId = `band-${stateKey.replace(/[^a-z0-9]+/gi, '-')}`
@@ -216,7 +216,7 @@ function Band({ band, stateKey, openId, onOpen }) {
         <span className={s.caret} data-open={open ? 'yes' : undefined} aria-hidden="true">&#9656;</span>
         <span className={s.bandName}>{band.label}</span>
         <span className={s.bandCount}>{band.items.length}</span>
-        {band.note && <span className={s.bandNote}>{band.note}</span>}
+        {showNote && band.note && <span className={s.bandNote}>{band.note}</span>}
       </button>
       {open && (
         <div id={bodyId}>
@@ -244,6 +244,12 @@ function Group({ scope, group, openId, onOpen, extras }) {
     : (locked ? 'read-only' : 'editable')
   // A single band of your own files needs no banner over it.
   const plain = bands.length <= 1 && bands[0]?.key === 'yours'
+  // When nothing in the group is editable the header already says "read-only"
+  // for all of it, so each band repeating it added nothing — nine plugin bands
+  // under one skills group stated the same fact ten times. A mixed group is
+  // the opposite: the header says "1 editable · 2 read-only" and which band is
+  // which becomes a real question, so there the notes stay.
+  const headerSaysItAll = editable === 0 && locked > 0
   const bodyId = `group-${scope}-${group.kind}`
 
   return (
@@ -270,6 +276,7 @@ function Group({ scope, group, openId, onOpen, extras }) {
                 stateKey={`${scope}:${group.kind}:${band.key}`}
                 openId={openId}
                 onOpen={onOpen}
+                showNote={!headerSaysItAll}
               />
             ))}
         </div>
