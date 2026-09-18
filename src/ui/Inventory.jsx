@@ -321,6 +321,40 @@ export function Notices({ inv }) {
       attn: true,
     })
   }
+  // Declared-vs-used: configuration that names something absent, or that will
+  // never take effect. Computing these and not showing them would be the same
+  // as not computing them at all.
+  const dangling = inv.joins?.danglingPlugins ?? []
+  if (dangling.length) {
+    notes.push({
+      tag: 'plugins',
+      text: `${plural(dangling.length, 'plugin is', 'plugins are')} enabled in settings but not installed — nothing loads for ${dangling.length === 1 ? 'it' : 'them'}`,
+      paths: dangling,
+      attn: true,
+    })
+  }
+
+  // null means no policy file exists, which is not the same as one that
+  // overrides nothing — only the second is an observation.
+  for (const m of inv.joins?.managedOverrides ?? []) {
+    if (m.state !== 'ok') {
+      notes.push({
+        tag: 'policy',
+        text: `a managed policy file could not be read (${m.state}) — it may be overriding settings this page shows as yours`,
+        paths: [m.file],
+        attn: true,
+      })
+      continue
+    }
+    if (!m.keys.length) continue
+    notes.push({
+      tag: 'policy',
+      text: `${plural(m.keys.length, 'setting is', 'settings are')} set by managed policy and cannot be overridden here`,
+      paths: m.keys,
+      attn: true,
+    })
+  }
+
   if (notes.length === 0) return null
 
   return (

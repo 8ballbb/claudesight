@@ -41,7 +41,12 @@ describe('buildProjectInventory', () => {
     write('.mcp.json', '{"mcpServers":{"x":{},"y":{}}}')
     const c = counts(buildProjectInventory(project))
     expect(c.settings).toBe(2)
-    expect(c.mcp).toBe(1)
+    // The file itself, plus a row per declared server. The group used to hold
+    // the file alone, carrying a count of servers that named a number and
+    // answered nothing about any of them.
+    expect(c.mcp).toBe(3)
+    const mcp = buildProjectInventory(project).groups.find((g) => g.kind === 'mcp')
+    expect(mcp.items.map((i) => i.label)).toEqual(['.mcp.json', 'x', 'y'])
   })
 
   it('reads agents, commands and nested rules', () => {

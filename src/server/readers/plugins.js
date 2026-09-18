@@ -30,6 +30,14 @@ export function readPlugins(root) {
     }
     for (const inst of instances) {
       const [name, marketplace] = id.split('@')
+      // Same lesson as the non-array case above, one field deeper: an entry
+      // without an installPath threw out of path.join and emptied the whole
+      // inventory page, not just this row. Report the entry as unreadable and
+      // carry on — a plugin we cannot locate is a fact worth showing.
+      if (typeof inst?.installPath !== 'string' || inst.installPath.length === 0) {
+        sources.push({ label: `installed_plugins → ${id}`, dir: installedPath, state: 'unexpected-shape' })
+        continue
+      }
       const manifestPath = path.join(inst.installPath, '.claude-plugin', 'plugin.json')
       const manifest = readJsonSafe(manifestPath)
       const manifestVersion = manifest.state === 'ok' ? (manifest.value.version ?? null) : null

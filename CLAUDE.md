@@ -198,11 +198,13 @@ the real figures come from Claude Code itself; an estimate presented as authorit
 would be a new way of lying. Agent and command *creation* (only skills can be created).
 Managed-policy source display. No multi-machine anything.
 
-Partly done: the declared-vs-used join. A hook or statusline script that is declared but
-missing or unreadable is surfaced as broken at both scopes. Still unjoined: agent and
-command declarations naming an uninstalled plugin, settings keys silently shadowed by a
-stricter managed-scope value, and MCP servers whose `command` is not on PATH — the same
-shape as the broken-hook case, applied to `.mcp.json`.
+The declared-vs-used join is done. A hook or statusline script declared but missing or
+unreadable is broken at both scopes; a plugin enabled in settings but not installed is
+named; a settings key set by managed policy says so; and every MCP server in `.mcp.json`
+gets a row carrying whether its command could be found. That last one has three answers,
+not two — `true`, `false` when PATH was searched and it was not there, and `null` when no
+answer is possible, which is a server addressed by URL or a PATH that is not set. A
+confident "missing" for something never looked up would be a new way of lying.
 
 ## How the backlog has been chosen
 

@@ -10,6 +10,8 @@ import { classify } from './writability.js'
 import { readJsonSafe, readDirSafe } from './fsread.js'
 import { isOurs } from './sidecar.js'
 import { artifactDirs, memoryDirs } from './ancestors.js'
+import { readMcpServers } from './mcp.js'
+import { danglingPlugins, managedOverrides, managedFiles } from './join.js'
 
 const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').slice(0, 16)
 
@@ -122,16 +124,37 @@ export function buildProjectInventory(projectPath) {
   }
   add('settings', settingsItems)
 
+  // The file used to be a single row carrying a count of servers, which named
+  // a number and answered nothing about any of them — including the one whose
+  // command is not on PATH and will fail the moment Claude Code launches it.
   const mcpFile = path.join(projectPath, '.mcp.json')
   const mcp = readJsonSafe(mcpFile)
-  add('mcp', mcp.state === 'absent' ? [] : [{
+  const mcpRows = mcp.state === 'absent' ? [] : [{
     path: mcpFile,
     label: '.mcp.json',
     servers: mcp.state === 'ok' ? Object.keys(mcp.value.mcpServers ?? {}).length : 0,
     state: mcp.state,
     line: mcp.line ?? null,
     column: mcp.column ?? null,
-  }])
+  }]
+  if (mcp.state !== 'absent') {
+    for (const srv of readMcpServers(mcpFile).servers) {
+      mcpRows.push({
+        path: mcpFile,
+        label: srv.name,
+        artifactKind: 'mcpServer',
+        state: 'ok',
+        command: srv.command,
+        transport: srv.transport,
+        // `false` is "PATH was searched and it is not there"; `null` is "no
+        // answer was possible", which must not read as a clean bill of health.
+        resolved: srv.resolved,
+        broken: srv.resolved === false,
+        reason: srv.reason,
+      })
+    }
+  }
+  add('mcp', mcpRows)
 
   // Claude Code loads project skills, agents and commands from the launch
   // directory and every parent up to the REPOSITORY ROOT — not beyond it, and
@@ -382,12 +405,30 @@ export function buildInventory(root) {
     }
   }))
 
+  // Two declarations that point at something that is not there, or that will
+  // never take effect — the broken-hook shape, applied to plugins and to
+  // managed policy. Both were computed nowhere and so could not be shown.
+  const settingsJson = readJsonSafe(path.join(root, 'settings.json'))
+  const settingsValue = settingsJson.state === 'ok' ? settingsJson.value : null
+  const dangling = danglingPlugins(
+    settingsValue?.enabledPlugins ?? {},
+    pl.plugins.map((x) => x.id),
+  )
+  // null means there is no policy file to compare against, which is a
+  // different answer from "nothing of yours is overridden".
+  const overrides = managedOverrides(settingsValue)
+
   return {
     root,
     groups,
     denied,
     errors,
     sources: [...sk.sources, ...sources, ...pl.sources],
+    joins: {
+      danglingPlugins: dangling,
+      managedOverrides: overrides,
+      managedFiles: managedFiles(),
+    },
     table,
   }
 }

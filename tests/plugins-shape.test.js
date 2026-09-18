@@ -53,3 +53,20 @@ describe('an instance list that is not a list', () => {
       .toMatch(/parsed, but an entry inside it is not the expected shape/)
   })
 })
+
+describe('an instance with no installPath', () => {
+  it('is skipped and reported, rather than emptying the whole page', async () => {
+    const fs2 = await import('node:fs')
+    const os2 = await import('node:os')
+    const path2 = await import('node:path')
+    const { readPlugins } = await import('../src/server/readers/plugins.js')
+    const root = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'claudesight-noinstallpath-'))
+    fs2.mkdirSync(path2.join(root, 'plugins'), { recursive: true })
+    fs2.writeFileSync(path2.join(root, 'plugins', 'installed_plugins.json'),
+      JSON.stringify({ plugins: { 'x@m': [{ version: '1.0.0' }] } }))
+    const r = readPlugins(root)
+    expect(r.plugins).toEqual([])
+    expect(r.sources.some((s) => s.state === 'unexpected-shape')).toBe(true)
+    fs2.rmSync(root, { recursive: true, force: true })
+  })
+})
