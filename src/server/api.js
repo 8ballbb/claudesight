@@ -12,6 +12,7 @@ import { isOurs } from './sidecar.js'
 import { artifactDirs, memoryDirs } from './ancestors.js'
 import { readMcpServers } from './mcp.js'
 import { danglingPlugins, managedOverrides, managedFiles } from './join.js'
+import { readScheduledTasks } from './readers/scheduled.js'
 
 const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').slice(0, 16)
 
@@ -381,6 +382,41 @@ export function buildInventory(root) {
       malformed: x.malformed, unreadable: x.unreadable,
     })))
   }
+
+  // User-scope rules. §4.1 has always specified `~/.claude/rules/`; only the
+  // project reader ever looked, so a rule loaded into every session on this
+  // machine did not appear on the page that lists what is loaded.
+  const globalRules = []
+  const rulesDir = path.join(root, 'rules')
+  const rulesState = readDirSafe(rulesDir)
+  sources.push({ label: 'user rules', dir: rulesDir, state: rulesState.state })
+  if (rulesState.state === 'ok') {
+    const walk = (dir, depth) => {
+      const listing = readDirSafe(dir)
+      if (listing.state !== 'ok') return
+      for (const entry of listing.value) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) { if (depth > 0) walk(full, depth - 1); continue }
+        if (!entry.name.endsWith('.md')) continue
+        globalRules.push({ path: full, label: path.relative(rulesDir, full).replace(/\.md$/, '') })
+      }
+    }
+    walk(rulesDir, 3)
+  }
+  add('rule', globalRules)
+
+  // Desktop scheduled tasks: the prompt is here and editable, the schedule is
+  // not. The note keeps the row from promising the half it cannot show.
+  const sched = readScheduledTasks(root)
+  sources.push(sched.source)
+  add('scheduledTask', sched.tasks.map((t) => ({
+    path: t.path,
+    label: t.name,
+    description: t.description,
+    malformed: t.malformed,
+    unreadable: t.unreadable,
+    note: 'prompt only — the schedule, folder and model live in Claude Desktop',
+  })))
 
   const pl = readPlugins(root)
   add('plugin', pl.plugins.map((p) => {

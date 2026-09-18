@@ -47,6 +47,7 @@ const GROUP_LABEL = {
   mcp: 'mcp servers',
   rule: 'rules',
   manifest: 'plugin manifest',
+  scheduledTask: 'scheduled tasks',
   other: 'not recognised',
 }
 
@@ -71,6 +72,12 @@ function meta(item) {
   // is left worth showing on the row.
   if (item.kind === 'skill' || item.kind === 'agent' || item.kind === 'command') {
     return item.description ?? ''
+  }
+  // A scheduled task's row carries a caveat: only the prompt is in this file.
+  // Computing it and not showing it would put a task on screen while implying
+  // the app can tell you when it runs.
+  if (item.kind === 'scheduledTask') {
+    return [item.description, item.note].filter(Boolean).join(' · ')
   }
   if (item.kind === 'plugin') {
     // The versions were already on the wire; the row showed only the word
