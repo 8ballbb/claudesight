@@ -584,6 +584,22 @@
 .factVal { color: var(--ink); font-size: 12px; word-break: break-all; margin: 0; }
 .hint { color: var(--faint); font-size: 11px; margin: 12px 0 0; }
 
+/* A control that reads as text, not as a form button. Two of these shipped
+   wearing the browser's default chrome — a light box on a dark page — because
+   they were made into <button> elements while keeping a <span>'s class. Same
+   `all: unset` approach as .groupToggle. */
+.quietButton {
+  all: unset;
+  cursor: pointer;
+  display: inline-block;
+  margin: 12px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+  font-family: inherit;
+}
+.quietButton:hover { color: var(--ink); }
+.quietButton:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
 .cmd {
   display: block;
   background: var(--well);

@@ -102,6 +102,24 @@ is sorted by id as a string, so two snapshots inside one millisecond ordered at 
 which made "newest first" wrong and `listVersions()[0]` an unreliable answer to "what did
 I save last". A zero-padded counter fixed it. It surfaced as a flaky test, not a report.
 
+**A `gone` project is hidden, never cleaned up.** The obvious feature is a button that
+deletes the state behind a project whose directory no longer exists. Measured before
+building it, on a real machine: there is no per-project container to delete. State is
+spread across the registry, `history.jsonl` and the transcript store, and those disagree
+— the one `gone` project had no registry entry, no history entries, a transcript
+directory holding no transcripts at all (four workflow scripts under a session id), and
+4,519 records carrying its `cwd` inside a DIFFERENT directory that also held the live
+session. The transcript store is keyed by a lossy slug: `-Users-x-projects-my-repo`
+decodes to `.../my/repo`, because a real hyphen is indistinguishable from a
+separator, so any cleanup matching on directory names deletes live projects. Resolving
+by the `cwd` recorded inside the transcripts instead gave 9 live, 3 gone, 2 unknowable —
+and the genuinely stale share was 250 KB of 185 MB, all of it temp directories. Claude
+Code already owns retention through `cleanupPeriodDays` and deliberately exempts
+auto-memory from that sweep. Above all, `gone` is a claim about right now: an unmounted
+volume, a removed worktree, a folder renamed this morning. The rows are hidden behind a
+toggle whose count is always on screen, because a list quietly shorter than the truth is
+the failure this app exists to prevent.
+
 **Deletion moves to the Trash.** `trash.js` refuses rather than unlinking when it cannot
 identify a trash mechanism. Never add an `fs.unlink` fallback.
 

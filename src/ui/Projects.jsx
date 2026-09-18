@@ -51,6 +51,64 @@ export function Markers({ markers }) {
   )
 }
 
+const HIDE_GONE_KEY = 'claudesight.showGone'
+
+// A project whose directory is missing cannot be opened, so it is clutter on a
+// list you use to pick something. It is hidden rather than removed, and the
+// count stays on screen whatever the setting: `gone` is a claim about right
+// now — an unmounted volume, a removed worktree, a folder renamed this
+// morning — and a list quietly shorter than the truth is the failure this
+// whole app exists to prevent. Nothing here deletes anything: the state lives
+// in three places that disagree, the transcript store is keyed by a lossy
+// slug, and the only honest cleanup is Claude Code's own retention sweep.
+export function ProjectList({ projects, selected, onPick }) {
+  const [showGone, setShowGone] = useState(() => {
+    try { return window.localStorage.getItem(HIDE_GONE_KEY) === 'yes' } catch { return false }
+  })
+
+  const gone = projects.filter((p) => !p.exists)
+  const visible = showGone ? projects : projects.filter((p) => p.exists)
+
+  const toggle = () => {
+    setShowGone((was) => {
+      const next = !was
+      try { window.localStorage.setItem(HIDE_GONE_KEY, next ? 'yes' : 'no') } catch { /* storage blocked */ }
+      return next
+    })
+  }
+
+  return (
+    <>
+      <ul className={s.rows}>
+        {visible.map((p) => (
+          <li key={p.path} className={`${s.row} ${selected?.path === p.path ? s.active : ''}`}>
+            <span className={s.index}>{p.sessions || '·'}</span>
+            <button
+              className={s.rowName}
+              onClick={() => onPick(p)}
+              disabled={!p.exists}
+              title={p.path}
+            >
+              {p.path.split('/').slice(-2).join('/')}
+            </button>
+            <span className={s.rowMeta} title={p.path}>{p.path}</span>
+            <span className={s.rowTail}>
+              {!p.exists && <span className={`${s.chip} ${s.alarm}`}>gone</span>}
+              {p.exists && !p.configured && <span className={`${s.chip} ${s.locked}`}>no config</span>}
+              <Markers markers={p.markers} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      {gone.length > 0 && (
+        <button type="button" className={s.quietButton} onClick={toggle} aria-expanded={showGone}>
+          {gone.length} gone{showGone ? ' · hide' : ' · show'}
+        </button>
+      )}
+    </>
+  )
+}
+
 // The count on its own was a dead end: it said six directories were dropped
 // and could not say which. The server has always known both the path and the
 // reason; this is the last step to the screen, where that fact used to be
@@ -73,7 +131,7 @@ export function FilteredNote({ filtered, filteredPaths }) {
     <>
       <button
         type="button"
-        className={s.groupCount}
+        className={s.quietButton}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
@@ -179,27 +237,7 @@ export default function Projects({ post, guard, frozen }) {
               exactly like having no projects. */}
           <Notices inv={{ sources: found.sources ?? [] }} />
 
-          <ul className={s.rows}>
-            {found.projects.map((p) => (
-              <li key={p.path} className={`${s.row} ${selected?.path === p.path ? s.active : ''}`}>
-                <span className={s.index}>{p.sessions || '·'}</span>
-                <button
-                  className={s.rowName}
-                  onClick={() => pick(p)}
-                  disabled={!p.exists}
-                  title={p.path}
-                >
-                  {p.path.split('/').slice(-2).join('/')}
-                </button>
-                <span className={s.rowMeta} title={p.path}>{p.path}</span>
-                <span className={s.rowTail}>
-                  {!p.exists && <span className={`${s.chip} ${s.alarm}`}>gone</span>}
-                  {p.exists && !p.configured && <span className={`${s.chip} ${s.locked}`}>no config</span>}
-                  <Markers markers={p.markers} />
-                </span>
-              </li>
-            ))}
-          </ul>
+          <ProjectList projects={found.projects} selected={selected} onPick={pick} />
 
           <form className={s.newForm} onSubmit={addDirectory}>
             <input
