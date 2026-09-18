@@ -4,12 +4,17 @@ import { readJsonSafe } from '../fsread.js'
 export function readPlugins(root) {
   const installedPath = path.join(root, 'plugins', 'installed_plugins.json')
   const installed = readJsonSafe(installedPath)
-  const sources = [{ label: 'installed_plugins', dir: installedPath, state: installed.state }]
-  if (installed.state !== 'ok') return { plugins: [], sources }
-
   const settingsPath = path.join(root, 'settings.json')
   const settings = readJsonSafe(settingsPath)
-  sources.push({ label: 'settings', dir: settingsPath, state: settings.state })
+  // Both files are named whatever either one says. These used to be pushed
+  // either side of the early return below, so an absent installed_plugins.json
+  // also silenced the settings notice — one file's state deciding whether
+  // another file's state was mentioned at all.
+  const sources = [
+    { label: 'installed_plugins', dir: installedPath, state: installed.state },
+    { label: 'settings', dir: settingsPath, state: settings.state },
+  ]
+  if (installed.state !== 'ok') return { plugins: [], sources }
   const enabledMap = settings.state === 'ok' ? (settings.value.enabledPlugins ?? {}) : {}
 
   const plugins = []
