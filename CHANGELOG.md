@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.2 — 2026-09-19
+
+### Changed
+
+- mint row identity structurally, so a producer cannot forget
+
 ## v0.6.1 — 2026-09-18
 
 ### Fixed
