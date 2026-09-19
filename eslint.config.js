@@ -6,23 +6,26 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // restricted-* rules below are not style: they enforce spec §9.5, and a
 // migration that quietly dropped them would be the most expensive kind of
 // silent regression in this repo. tests/lint-rules.test.js proves they fire.
+// Every extension this repo lints, named ONCE. It was two lists, and the
+// comment that used to sit here said an extension "belongs in both of these
+// lists or it is silently exempt" — a footgun described accurately and then
+// left in place. It had already fired twice: .jsx was silently unlinted until
+// the flat-config move, and .mjs was silently unlinted the day scripts/ got
+// its first one, where an undefined identifier passed CI.
+const JS_LIKE = ['**/*.js', '**/*.jsx', '**/*.mjs']
+
 export default [
   {
     ignores: ['dist/**', 'node_modules/**'],
   },
-  { ...js.configs.recommended, files: ['**/*.js', '**/*.jsx', '**/*.mjs'] },
+  { ...js.configs.recommended, files: JS_LIKE },
   {
     // Without an explicit `files`, ESLint lints only .js — so every .jsx file
     // was silently skipped, and the dangerouslySetInnerHTML rule below had
     // never once run. The old .eslintrc setup had the same hole: the lint
     // script has never passed `--ext`.
     //
-    // `.mjs` is here for the same reason, one extension later: `npm run lint`
-    // enumerates scripts/, so scripts/demo-config.mjs LOOKED linted while
-    // being checked against no rules at all. An undefined identifier in it
-    // passed CI. Whenever a new extension appears in this repo, it belongs in
-    // both of these lists or it is silently exempt.
-    files: ['**/*.js', '**/*.jsx', '**/*.mjs'],
+    files: JS_LIKE,
     plugins: { 'react-hooks': reactHooks },
     languageOptions: {
       ecmaVersion: 2022,

@@ -171,21 +171,25 @@ describe('claims the docs make about behaviour', () => {
     expect(security).toMatch(/frontmatter/i)
   })
 
+  // One matcher, used by both tests below. Written twice, the second test
+  // would verify its own private copy: editing the regex here and not there
+  // would leave it passing while the thing it guards had changed.
+  //
+  // The character class must not exclude `:`, or an https link matches
+  // WITHOUT its scheme and is then checked as a relative file that does not
+  // exist. That was the bug; the URL test below is what holds it shut.
+  const linkTargets = (text) =>
+    [...text.matchAll(/\(([^()\s]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
+
   it('points only at files that exist', () => {
-    // The character class excluded `:`, so an https link matched WITHOUT its
-    // scheme and the startsWith('http') guard could never fire — a future
-    // `[spec](https://example.com/doc.md)` would have failed as a missing
-    // file. Match the whole target, then drop the ones that are URLs.
-    const referenced = [...readme.matchAll(/\(([^()\s]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
-    for (const rel of referenced) {
+    for (const rel of linkTargets(readme)) {
       if (rel.includes('://')) continue
       expect(fs.existsSync(rel), `README points at ${rel}, which does not exist`).toBe(true)
     }
   })
 
   it('does not mistake a URL for a missing file', () => {
-    const withUrl = `${readme}\n[spec](https://example.com/doc.md)\n`
-    const referenced = [...withUrl.matchAll(/\(([^()\s]+\.(?:md|jpg|png))\)/g)].map((m) => m[1])
+    const referenced = linkTargets(`${readme}\n[spec](https://example.com/doc.md)\n`)
     expect(referenced).toContain('https://example.com/doc.md')
     expect(referenced.filter((r) => !r.includes('://')).every((r) => fs.existsSync(r))).toBe(true)
   })

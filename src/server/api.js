@@ -20,10 +20,15 @@ const handleFor = (p) => crypto.createHash('sha256').update(p).digest('hex').sli
 // an MCP server is addressed by the .mcp.json that declares it, an inline hook
 // by the settings.json that declares it. Hashing the path alone gave the
 // .mcp.json row and every server in it one id between them — duplicate React
-// keys in one list, and clicking any of them selecting all of them. A row that
-// shares a path says how it differs; the key stays deterministic, so ids are
-// stable across reads.
-const idOf = (e) => handleFor(e.idKey ?? e.path)
+// keys in one list, and clicking any of them selecting all of them.
+//
+// So identity is STRUCTURAL and minted in one place, rather than a field each
+// row-producer opts into: the group it appears in, the file it lives in, and
+// whatever distinguishes it inside that file. A producer cannot forget to be
+// unique, which is the failure the first version of this fix left open. It is
+// a pure function of those three, so ids stay stable across reads.
+const idFor = (groupKind, e) =>
+  handleFor([groupKind, e.path, e.keyPath ?? e.label ?? ''].join('\u0000'))
 
 // A project's .claude/ is structurally the global root in miniature, so the
 // same readers work against it. `root` for classification is the PROJECT
@@ -40,9 +45,6 @@ function scriptRow(r, declaredIn, keyPrefix = '') {
   const inline = r.state === 'not-declared'
   return {
     path: r.scriptPath ?? declaredIn,
-    // Two inline hooks in one settings file share that file's path, and so
-    // did their ids. The key path is what distinguishes the declarations.
-    idKey: `${r.scriptPath ?? declaredIn}\u0000${keyPrefix}${r.keyPath}`,
     label: r.scriptPath ? path.basename(r.scriptPath) : lastKey(r.keyPath),
     keyPath: keyPrefix + r.keyPath,
     command: r.command,
@@ -73,18 +75,22 @@ export function buildProjectInventory(projectPath) {
   const errors = []
   const dotClaude = path.join(projectPath, '.claude')
 
+  // Every row in this inventory is minted here, including the ones appended to
+  // a group after it was built. A second place that built rows by hand was how
+  // the plugin-source skills came to bypass the id rule entirely.
+  const makeRow = (groupKind, e) => {
+    const kind = e.artifactKind ?? groupKind
+    const id = idFor(groupKind, e)
+    // The root an artifact is judged by travels with it. The write route
+    // used to judge everything against the global config root, so every
+    // project file was advertised editable here and refused there.
+    const itemRoot = e.declaredIn ?? projectPath
+    table.set(id, { path: e.path, kind, root: itemRoot })
+    return { id, kind, ...e, writability: classify({ path: e.path, kind, root: itemRoot }) }
+  }
+
   const add = (groupKind, entries) => {
-    const items = entries.map((e) => {
-      const kind = e.artifactKind ?? groupKind
-      const id = idOf(e)
-      // The root an artifact is judged by travels with it. The write route
-      // used to judge everything against the global config root, so every
-      // project file was advertised editable here and refused there.
-      const itemRoot = e.declaredIn ?? projectPath
-      table.set(id, { path: e.path, kind, root: itemRoot })
-      return { id, kind, ...e, writability: classify({ path: e.path, kind, root: itemRoot }) }
-    })
-    groups.push({ kind: groupKind, items })
+    groups.push({ kind: groupKind, items: entries.map((e) => makeRow(groupKind, e)) })
   }
 
   // Every documented project memory location, each with its imports resolved.
@@ -154,7 +160,6 @@ export function buildProjectInventory(projectPath) {
     for (const srv of readMcpServers(mcpFile).servers) {
       mcpRows.push({
         path: mcpFile,
-        idKey: `${mcpFile}\u0000mcpServer:${srv.name}`,
         label: srv.name,
         artifactKind: 'mcpServer',
         state: 'ok',
@@ -262,13 +267,10 @@ export function buildProjectInventory(projectPath) {
     for (const g of groups) {
       if (g.kind !== 'skill') continue
       for (const x of repoSkills.skills) {
-        const id = handleFor(x.path)
-        table.set(id, { path: x.path, kind: 'skill', root: projectPath })
-        g.items.push({
-          id, kind: 'skill', path: x.path, label: x.name, description: x.description,
+        g.items.push(makeRow('skill', {
+          path: x.path, label: x.name, description: x.description,
           origin: 'plugin-source', malformed: x.malformed, unreadable: x.unreadable,
-          writability: classify({ path: x.path, kind: 'skill', root: projectPath }),
-        })
+        }))
       }
     }
   }
@@ -336,7 +338,7 @@ export function buildInventory(root) {
   const add = (groupKind, entries) => {
     const items = entries.map((e) => {
       const kind = e.artifactKind ?? groupKind
-      const id = idOf(e)
+      const id = idFor(groupKind, e)
       table.set(id, { path: e.path, kind, root })
       return { id, kind, ...e, writability: classify({ path: e.path, kind, root }) }
     })

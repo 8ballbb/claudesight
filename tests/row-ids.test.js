@@ -56,21 +56,54 @@ describe('project rows', () => {
     expect(new Set([settings.id, ...scripts.map((s) => s.id)]).size).toBe(1 + scripts.length)
   })
 
-  it('still resolves every id back to a file the editor can open', () => {
+  // The rule, not the two instances of it. Identity is minted in one place
+  // from the group, the path and what distinguishes the row inside that file,
+  // so this holds for row kinds that do not exist yet — including the
+  // plugin-source skills, which for a while bypassed the id rule entirely by
+  // building their rows by hand.
+  it('holds for every row a rich project produces, whatever made it', () => {
     write('.claude/settings.json', settingsWithHooks)
     write('.mcp.json', mcp)
+    write('CLAUDE.md', '# project\n')
+    write('.claude/skills/local/SKILL.md', '---\nname: local\ndescription: d\n---\nx\n')
+    write('.claude/agents/reviewer.md', '---\nname: reviewer\ndescription: d\n---\nx\n')
+    write('.claude/rules/testing.md', '# testing\n')
+    // A plugin source repo keeps its skills at the repo root, and those rows
+    // are appended to an already-built group.
+    write('.claude-plugin/plugin.json', '{"name":"demo","version":"1.0.0"}')
+    write('skills/published/SKILL.md', '---\nname: published\ndescription: d\n---\nx\n')
+
     const inv = buildProjectInventory(root)
-    for (const id of ids(inv)) {
+    const list = ids(inv)
+    expect(list.length).toBeGreaterThan(8)
+    expect(dupes(list)).toEqual([])
+    // and every one of them still names a file the editor can open
+    for (const id of list) {
       const entry = inv.table.get(id)
       expect(entry, `id ${id} should resolve`).toBeTruthy()
       expect(fs.existsSync(entry.path)).toBe(true)
     }
   })
 
-  it('is stable across two reads of the same tree', () => {
-    write('.claude/settings.json', settingsWithHooks)
-    write('.mcp.json', mcp)
-    expect(ids(buildProjectInventory(root))).toEqual(ids(buildProjectInventory(root)))
+  // Not merely "the same tree twice" — that passed even when ids were a plain
+  // hash of the path. Adding a row must not renumber the rows already there,
+  // which is what an id derived from position in the file would do.
+  it('does not renumber existing rows when a new one appears', () => {
+    write('.claude/skills/beta/SKILL.md', '---\nname: beta\ndescription: d\n---\nx\n')
+    write('.claude/skills/gamma/SKILL.md', '---\nname: gamma\ndescription: d\n---\nx\n')
+    const before = new Map(
+      buildProjectInventory(root).groups.flatMap((g) => g.items.map((i) => [i.label, i.id])),
+    )
+
+    write('.claude/skills/alpha/SKILL.md', '---\nname: alpha\ndescription: d\n---\nx\n')
+    const after = new Map(
+      buildProjectInventory(root).groups.flatMap((g) => g.items.map((i) => [i.label, i.id])),
+    )
+
+    for (const [label, id] of before) {
+      expect(after.get(label), `${label} should keep its id`).toBe(id)
+    }
+    expect(after.has('alpha')).toBe(true)
   })
 })
 
