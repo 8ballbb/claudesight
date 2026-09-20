@@ -2,7 +2,7 @@
 // The property that matters most: an edit never touches a key it was not asked
 // to, so unknown keys — newer than the catalogue, or typos — survive untouched.
 import { describe, it, expect } from 'vitest'
-import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, listSetAt, listRemoveAt, pairsToObject, objectToPairs } from '../src/ui/settingsForm.js'
+import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, listSetAt, listRemoveAt, pairsToObject, objectToPairs, filterAvailable } from '../src/ui/settingsForm.js'
 
 const entries = [
   { key: 'autoUpdatesChannel', control: 'enum', enum: ['stable', 'latest'], default: 'latest' },
@@ -117,5 +117,29 @@ describe('map rows round-trip and drop blank keys', () => {
   })
   it('a later duplicate key wins, matching object semantics', () => {
     expect(pairsToObject([['a', '1'], ['a', '2']])).toEqual({ a: '2' })
+  })
+})
+
+describe('filterAvailable searches key and description', () => {
+  const avail = [
+    { key: 'verbose', description: 'Show full tool output instead of truncated summaries.' },
+    { key: 'outputStyle', description: 'Controls the output style for assistant responses.' },
+    { key: 'cleanupPeriodDays', description: 'Days to retain sessions.' },
+  ]
+  it('returns everything for an empty query', () => {
+    expect(filterAvailable(avail, '').length).toBe(3)
+    expect(filterAvailable(avail, '   ').length).toBe(3)
+  })
+  it('matches on the key', () => {
+    expect(filterAvailable(avail, 'verbose').map((e) => e.key)).toEqual(['verbose'])
+  })
+  it('matches on the description, so a concept finds a differently-named key', () => {
+    expect(filterAvailable(avail, 'tool output').map((e) => e.key)).toEqual(['verbose'])
+  })
+  it('is case-insensitive', () => {
+    expect(filterAvailable(avail, 'OUTPUT').map((e) => e.key).sort()).toEqual(['outputStyle', 'verbose'])
+  })
+  it('returns nothing when a query matches nothing', () => {
+    expect(filterAvailable(avail, 'zzz-nope')).toEqual([])
   })
 })

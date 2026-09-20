@@ -70,8 +70,8 @@ you can change a thing. Everything starts folded; what you expand is remembered.
 The settings file holds only what you have set; Claude Code accepts around 140
 keys, and you cannot add one you cannot see. Open a `settings.json` and the
 editor offers a form view over the same JSON, in three bands: **set here**,
-**available to add** (every documented key, with its type, allowed values and a
-description of what each value does — one click seeds it), and **not in this
+**available to add** (every documented key, searchable by name or by what it
+does, with its type, allowed values and a description — one click seeds it), and **not in this
 catalogue** (keys present in the file that the catalogue does not recognise,
 kept untouched — they may be newer than the catalogue, or a typo). An enum
 dropdown shows the documented values; a value outside them is flagged, not

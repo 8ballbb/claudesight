@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import s from './app.module.css'
-import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, listSetAt, listRemoveAt, pairsToObject, objectToPairs } from './settingsForm.js'
+import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, listSetAt, listRemoveAt, pairsToObject, objectToPairs, filterAvailable } from './settingsForm.js'
 
 // The form view over a settings file. It edits the same JSON the raw view
 // edits — every change serialises straight back into the editor's text buffer
@@ -128,6 +128,7 @@ function SetRow({ entry, value, onChange, onRemove, disabled }) {
 
 export function SettingsForm({ text, onChange, editable, post }) {
   const [catalog, setCatalog] = useState(null)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     let live = true
@@ -188,22 +189,45 @@ export function SettingsForm({ text, onChange, editable, post }) {
         </>
       )}
 
-      {editable && (
-        <details className={s.available}>
-          <summary className={s.bandHead}>available to add <span className={s.groupCount}>{available.length}</span></summary>
-          <ul className={s.bandList}>
-            {available.map((e) => (
-              <li key={e.key} className={s.availRow}>
-                <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => emit(addKey(value, e))}>+ add</button>
-                <span className={s.setKey}>{e.key}</span>
-                {e.deprecated && <span className={`${s.chip} ${s.caution}`}>deprecated</span>}
-                <span className={s.availType}>{e.control === 'enum' ? e.enum.join(' | ') : e.type}</span>
-                {e.description && <p className={s.hint}>{e.description}</p>}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      {editable && (() => {
+        // Every key Claude Code accepts that this file does not set yet — the
+        // point of the catalogue. 130-odd of them, so a collapsed list was
+        // unusable: you could not find "verbose" in it. Search over key AND
+        // description, and when the box is empty show a capped preview with an
+        // honest count rather than a wall or a silent truncation.
+        const PREVIEW = 12
+        const matches = filterAvailable(available, query)
+        const searching = query.trim().length > 0
+        const shown = searching ? matches : matches.slice(0, PREVIEW)
+        return (
+          <div className={s.addSection}>
+            <h3 className={s.bandHead}>add a setting <span className={s.groupCount}>{available.length} available</span></h3>
+            <input
+              className={s.labelInput}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="search all settings — name or what it does (e.g. verbose)"
+              aria-label="Search settings to add"
+            />
+            <p className={s.hint}>
+              {searching
+                ? (matches.length === 0 ? `Nothing matches "${query.trim()}".` : `${matches.length} match${matches.length === 1 ? '' : 'es'}.`)
+                : `Showing ${shown.length} of ${available.length} — type to find any of them.`}
+            </p>
+            <ul className={s.bandList}>
+              {shown.map((e) => (
+                <li key={e.key} className={s.availRow}>
+                  <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => emit(addKey(value, e))}>+ add</button>
+                  <span className={s.setKey}>{e.key}</span>
+                  {e.deprecated && <span className={`${s.chip} ${s.caution}`}>deprecated</span>}
+                  <span className={s.availType}>{e.control === 'enum' ? e.enum.join(' | ') : e.type}</span>
+                  {e.description && <p className={s.hint}>{e.description}</p>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
     </div>
   )
 }

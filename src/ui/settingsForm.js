@@ -68,6 +68,15 @@ function emptyFor(entry) {
   return entry.type === 'array' ? [] : {}
 }
 
+// Filter the available-to-add list by a query, over both the key and its
+// description — so "verbose" finds `verbose`, and "how talkative" finds it
+// through the description too. Empty query returns everything.
+export function filterAvailable(available, query) {
+  const q = (query ?? '').trim().toLowerCase()
+  if (!q) return available
+  return available.filter((e) => `${e.key} ${e.description ?? ''}`.toLowerCase().includes(q))
+}
+
 // List edits — immutable, for the array<scalar> control. Each returns a new
 // array so the value the caller writes back is fresh.
 export function listAdd(arr, item) {
