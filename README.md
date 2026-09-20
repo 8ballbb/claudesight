@@ -65,6 +65,27 @@ you can change a thing. Everything starts folded; what you expand is remembered.
 
 ![The projects view: discovered projects on the left, the selected package on the right — a CLAUDE.md inherited from the repository root, and an MCP server whose command is not on PATH flagged as broken](docs/img/projects.jpg)
 
+## Settings
+
+The settings file holds only what you have set; Claude Code accepts around 140
+keys, and you cannot add one you cannot see. Open a `settings.json` and the
+editor offers a form view over the same JSON, in three bands: **set here**,
+**available to add** (every documented key, with its type, allowed values and a
+description of what each value does — one click seeds it), and **not in this
+catalogue** (keys present in the file that the catalogue does not recognise,
+kept untouched — they may be newer than the catalogue, or a typo). An enum
+dropdown shows the documented values; a value outside them is flagged, not
+rejected, because the catalogue can lag your installed version.
+
+The catalogue is a JSON Schema from [SchemaStore](https://www.schemastore.org/claude-code-settings.json)
+(Apache-2.0), **bundled, not fetched** — the app makes no network requests — and
+refreshed out-of-band by `scripts/refresh-settings-schema.mjs`. The editor
+states which Claude Code version it reflects against the one you have installed,
+so staleness is visible rather than assumed. The form is always a convenience
+over the JSON: the raw view edits anything the catalogue does not model, and
+every save still goes through the same backup, compare-and-swap and
+executable-write confirmation as any other edit.
+
 ## Adding artifacts
 
 Four kinds can be created, at either scope: `CLAUDE.md`, a rule, a skill, and a subagent.

@@ -93,6 +93,21 @@ an empty list means "nothing found by reading". The fixed "Not checked" line und
 scripts group exists for the same reason: nothing here is executed, and a clean list must
 never read as a clean bill of health.
 
+**The settings catalogue is bundled data, and it advises — it never gatekeeps.**
+`data/claude-code-settings.schema.json` is a JSON Schema from SchemaStore (Apache-2.0),
+bundled because the app makes no outbound requests and Claude Code ships as a compiled
+blob with no schema to read. `scripts/refresh-settings-schema.mjs` refreshes it and
+records provenance in `settings-schema.meta.json` — the Claude Code version SchemaStore
+synced to, the fetch date, a hash — so the UI states how current it is rather than
+implying authority over the installed version. A key the catalogue lacks is UNKNOWN, not
+invalid (it may be newer, or a typo) and is never touched; a value outside a documented
+enum is flagged, not rejected, because the bundle can lag. The schema itself agrees:
+`additionalProperties` is true. The settings form is a view over the editor's JSON
+buffer, never a second store, so the form and the raw view cannot disagree and both go
+through the one gated write. Anything the catalogue does not model stays editable as raw
+JSON — the form is never a ceiling. If you edit the bundled schema by hand,
+`tests/settings-schema-bundle.test.js` fails on the hash mismatch; re-run the script.
+
 **The product name is written down once, in `src/server/sidecar.js`.** Everything
 this app writes beside a user's file — backup, lock, temp — takes its name from there.
 It used to be spelled into four separate template literals in writer.js, the rename

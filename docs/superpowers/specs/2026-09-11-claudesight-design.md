@@ -738,5 +738,27 @@ real-machine verification:
     instance: for every row an inventory advertises, the writer's verdict must equal the
     verdict the page showed.
 
+**Revision 9 — 2026-09-20.** A settings catalogue, so the file can be edited by what
+Claude Code accepts, not only by what is already in it.
+
+25. **The catalogue is bundled, because it can be neither fetched nor derived.** The
+    settings file holds only what a user set; Claude Code accepts ~140 keys, and a user
+    cannot add one they cannot see. The list with types, allowed values and per-value
+    meaning is not obtainable at runtime — the app makes no outbound requests — nor from
+    the install, which is a 302MB compiled binary with no schema file and no
+    `config schema` command. SchemaStore publishes a maintained JSON Schema for
+    settings.json (Apache-2.0), stamped with the Claude Code version each update syncs
+    to. It is bundled and refreshed out-of-band by scripts/refresh-settings-schema.mjs,
+    with provenance recorded so the app states how current it is.
+26. **It advises, never gatekeeps — the schema's own stance (additionalProperties true).**
+    A key the catalogue lacks is unknown, not invalid, and is never removed; a value
+    outside a documented enum is flagged, not rejected, because the bundle can lag the
+    installed version. The same five-state honesty the readers keep, applied to settings.
+27. **The form is a view over the JSON buffer, not a second store.** The settings editor
+    offers a form (three bands: set, available-to-add, unknown) over the same text the
+    raw editor edits, so they cannot diverge and both flow through the one gated write —
+    backup, compare-and-swap, and the executable-write confirmation. Anything the
+    catalogue does not model stays editable as raw JSON; the form is never a ceiling.
+
 Open: none blocking. The name is settled: `claudesight` throughout — the command, the
 repository and the npm package, verified obtainable before it was adopted.

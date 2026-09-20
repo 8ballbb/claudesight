@@ -51,6 +51,16 @@ jobs:
 
       - run: npm test
 
+      # Non-blocking: warns when SchemaStore has synced the settings schema to
+      # a newer Claude Code version than the bundled copy, so someone runs the
+      # refresh. It must never block a release — a stale-but-present catalogue
+      # is still useful, and it advises rather than gates — so it is allowed to
+      # fail. Runs once (Node 22) to avoid two identical GitHub API hits.
+      - name: Warn if the settings schema has drifted
+        if: matrix.node == '22'
+        continue-on-error: true
+        run: node scripts/refresh-settings-schema.mjs --check
+
       - name: The built UI must exist after a clean install
         run: test -f dist/index.html && test -n "$(ls dist/assets/*.js)"
 

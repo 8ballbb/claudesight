@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import s from './app.module.css'
+import { SettingsForm } from './SettingsForm.jsx'
 import { diffText } from '../server/linediff.js'
 
 // State what the app DOES, not what would hypothetically happen. Saving is
@@ -141,6 +142,8 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange, fr
   // Keyed by version id, so opening one comparison closes the last.
   const [diff, setDiff] = useState(null)
   const [preview, setPreview] = useState(false)
+  // Settings files open in the form view; everything else is the raw editor.
+  const [formView, setFormView] = useState(item.kind === 'settings')
 
   const cls = item.writability.class
   const editable = cls === 'free' || cls === 'exec'
@@ -333,14 +336,24 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange, fr
 
         {openable && doc && (
           <div className={s.editor}>
-            <textarea
-              className={s.textarea}
-              value={text}
-              readOnly={!editable}
-              onChange={(e) => setText(e.target.value)}
-              spellCheck={false}
-              aria-label={`Contents of ${item.label}`}
-            />
+            {item.kind === 'settings' && (
+              <div className={s.viewToggle}>
+                <button className={`${s.btn} ${formView ? '' : s.btnQuiet}`} onClick={() => setFormView(true)}>Form</button>
+                <button className={`${s.btn} ${formView ? s.btnQuiet : ''}`} onClick={() => setFormView(false)}>JSON</button>
+              </div>
+            )}
+            {item.kind === 'settings' && formView ? (
+              <SettingsForm text={text} onChange={setText} editable={editable} post={post} />
+            ) : (
+              <textarea
+                className={s.textarea}
+                value={text}
+                readOnly={!editable}
+                onChange={(e) => setText(e.target.value)}
+                spellCheck={false}
+                aria-label={`Contents of ${item.label}`}
+              />
+            )}
 
             {confirm && (
               <div className={s.confirm}>
