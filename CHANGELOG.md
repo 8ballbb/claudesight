@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.0 — 2026-09-20
+
+### Added
+
+- a form view for settings — set, available-to-add, and unknown
+- a settings catalogue — every key Claude Code accepts, bundled
+
 ## v0.6.2 — 2026-09-19
 
 ### Changed

@@ -1,7 +1,7 @@
 {
   "name": "claudesight",
-  "version": "0.6.2",
-  "description": "See and edit every Claude Code artifact on your machine \u2014 global and per project. macOS, local only.",
+  "version": "0.7.0",
+  "description": "See and edit every Claude Code artifact on your machine — global and per project. macOS, local only.",
   "keywords": [
     "claude",
     "claude-code",
