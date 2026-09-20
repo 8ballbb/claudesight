@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.0 — 2026-09-20
+
+### Added
+
+- form controls for lists, string maps, and one-level objects
+
 ## v0.7.0 — 2026-09-20
 
 ### Added
