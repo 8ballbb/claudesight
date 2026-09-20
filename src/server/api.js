@@ -4,6 +4,7 @@ import path from 'node:path'
 import { readSkills } from './readers/skills.js'
 import { readMemory, flattenMemory } from './readers/memory.js'
 import { readSettings, extractScripts } from './readers/settings.js'
+import { readSettingsCatalog, classifySettings } from './readers/settings-catalog.js'
 import { readPlugins } from './readers/plugins.js'
 import { readMarkdownKind } from './readers/markdown.js'
 import { classify } from './writability.js'
@@ -128,10 +129,12 @@ export function buildProjectInventory(projectPath) {
   add('memory', memoryItems)
 
   const settingsItems = []
+  const catalog = readSettingsCatalog()
   for (const name of ['settings.json', 'settings.local.json']) {
     const file = path.join(dotClaude, name)
     const r = readJsonSafe(file)
     if (r.state === 'absent') continue
+    const cls = r.state === 'ok' ? classifySettings(r.value, catalog) : null
     settingsItems.push({
       path: file,
       label: name,
@@ -139,6 +142,9 @@ export function buildProjectInventory(projectPath) {
       state: r.state,
       line: r.line ?? null,
       column: r.column ?? null,
+      unknownKeys: cls?.unknown ?? [],
+      outOfEnum: cls?.outOfEnum ?? [],
+      available: catalog.state === 'ok' ? catalog.keys.length - (cls?.known.length ?? 0) : null,
     })
   }
   add('settings', settingsItems)
@@ -359,7 +365,9 @@ export function buildInventory(root) {
   // rendered empty — a bare zero for the most important file here, and exactly
   // when you would open this tool. Project scope already got this right; the
   // asymmetry meant the app was honest at one scope and silent at the other.
+  const catalog = readSettingsCatalog()
   const s = readSettings(root)
+  const sClass = s.result.state === 'ok' ? classifySettings(s.result.value, catalog) : null
   add('settings', s.result.state === 'absent' ? [] : [{
     path: s.path,
     label: 'settings.json',
@@ -368,6 +376,12 @@ export function buildInventory(root) {
     // Computed by positionOf() in fsread.js and dropped here until now.
     line: s.result.line ?? null,
     column: s.result.column ?? null,
+    // Advice from the bundled catalogue: keys it does not list (newer, or a
+    // typo) and values outside the documented set. Never a gate — see the
+    // reader. `available` is the count a user could add here but has not.
+    unknownKeys: sClass?.unknown ?? [],
+    outOfEnum: sClass?.outOfEnum ?? [],
+    available: catalog.state === 'ok' ? catalog.keys.length - (sClass?.known.length ?? 0) : null,
   }])
 
   const scripts = s.result.state === 'ok' ? extractScripts(s.result.value, root) : []
@@ -480,6 +494,9 @@ export function buildInventory(root) {
       managedOverrides: overrides,
       managedFiles: managedFiles(),
     },
+    // Provenance so the settings panel can state how current its catalogue is
+    // against the installed version, rather than implying it is authoritative.
+    settingsCatalog: { state: catalog.state, provenance: catalog.provenance },
     table,
   }
 }

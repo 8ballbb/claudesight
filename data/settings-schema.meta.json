@@ -1,0 +1,9 @@
+{
+  "source": "https://www.schemastore.org/claude-code-settings.json",
+  "license": "Apache-2.0",
+  "syncedTo": "v2.1.220",
+  "syncedCommit": "feat(claude-code): sync settings and keybindings to Claude Code v2.1.220 (#6131)",
+  "syncedCommitDate": "2026-07-27T14:00:03Z",
+  "fetchedAt": "2026-09-20T05:51:41.960Z",
+  "sha256": "6d4a6e3c7adedffce8079ccaef0a4bab5f5718b054421b4475c788a0ae4bedfe"
+}

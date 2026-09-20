@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createSecurity } from './security.js'
 import { buildInventory, buildProjectInventory } from './api.js'
+import { readSettingsCatalog } from './readers/settings-catalog.js'
 import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
 import { listVersions, createVersion, readVersion, deleteVersion, compareVersion } from './versions.js'
@@ -108,6 +109,20 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
           // eslint-disable-next-line no-unused-vars
           const { table, ...safe } = inventory
           return json(res, 200, safe)
+        }
+
+        // The settings catalogue: every key Claude Code accepts, with its type,
+        // allowed values, description and default, plus provenance. Served on
+        // demand when the settings editor opens rather than bloating every
+        // inventory load. The raw sub-schema is dropped — the editor renders
+        // from the flat fields and shows json-control settings as their current
+        // value — keeping the payload small.
+        if (url.pathname === '/api/settings-catalog') {
+          const c = readSettingsCatalog()
+          // `schema` (the raw sub-schema) is dropped from the wire payload.
+          // eslint-disable-next-line no-unused-vars
+          const entries = [...c.entries.values()].map(({ schema, ...flat }) => flat)
+          return json(res, 200, { state: c.state, provenance: c.provenance, entries })
         }
 
         if (url.pathname === '/api/read' && req.method === 'POST') {
