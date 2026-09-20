@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.0 — 2026-09-20
+
+### Added
+
+- search the settings you could add, by name or by what they do
+
 ## v0.8.0 — 2026-09-20
 
 ### Added
