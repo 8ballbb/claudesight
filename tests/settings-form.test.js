@@ -2,7 +2,7 @@
 // The property that matters most: an edit never touches a key it was not asked
 // to, so unknown keys — newer than the catalogue, or typos — survive untouched.
 import { describe, it, expect } from 'vitest'
-import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce } from '../src/ui/settingsForm.js'
+import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, listSetAt, listRemoveAt, pairsToObject, objectToPairs } from '../src/ui/settingsForm.js'
 
 const entries = [
   { key: 'autoUpdatesChannel', control: 'enum', enum: ['stable', 'latest'], default: 'latest' },
@@ -86,5 +86,36 @@ describe('coerce', () => {
   })
   it('leaves strings alone', () => {
     expect(coerce('string', 'opus')).toBe('opus')
+  })
+})
+
+describe('list edits are immutable and preserve order', () => {
+  it('adds without mutating the original', () => {
+    const a = ['x']
+    const b = listAdd(a, 'y')
+    expect(b).toEqual(['x', 'y'])
+    expect(a).toEqual(['x'])
+  })
+  it('sets one index', () => {
+    expect(listSetAt(['a', 'b', 'c'], 1, 'B')).toEqual(['a', 'B', 'c'])
+  })
+  it('removes one index', () => {
+    expect(listRemoveAt(['a', 'b', 'c'], 1)).toEqual(['a', 'c'])
+  })
+  it('treats a non-array as empty rather than throwing', () => {
+    expect(listAdd(undefined, 'x')).toEqual(['x'])
+    expect(listRemoveAt(null, 0)).toEqual([])
+  })
+})
+
+describe('map rows round-trip and drop blank keys', () => {
+  it('builds an object from pairs, ignoring empty keys', () => {
+    expect(pairsToObject([['a', '1'], ['', 'orphan'], ['b', '2']])).toEqual({ a: '1', b: '2' })
+  })
+  it('reads pairs from an object', () => {
+    expect(objectToPairs({ a: '1', b: '2' })).toEqual([['a', '1'], ['b', '2']])
+  })
+  it('a later duplicate key wins, matching object semantics', () => {
+    expect(pairsToObject([['a', '1'], ['a', '2']])).toEqual({ a: '2' })
   })
 })

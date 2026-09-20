@@ -44,7 +44,7 @@ describe('readSettingsCatalog', () => {
     expect(c.entries.get('cleanupPeriodDays').control).toBe('number')
     expect(c.entries.get('autoMemoryEnabled').control).toBe('boolean')
     expect(c.entries.get('model').control).toBe('string')
-    expect(c.entries.get('permissions').control).toBe('json')
+    expect(c.entries.get('permissions').control).toBe('object') // was json; now a one-level form
   })
 
   it('carries allowed values, default, range and description', () => {
@@ -105,5 +105,80 @@ describe('the real bundled schema', () => {
       expect(c.keys, `catalogue should know ${k}`).toContain(k)
     }
     expect(c.provenance.syncedTo).toMatch(/^v\d/)
+  })
+})
+
+describe('composite controls — list, map, one-level object', () => {
+  let d
+  const compositeSchema = {
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    type: 'object',
+    $defs: { rule: { type: 'string' } },
+    properties: {
+      excludes: { type: 'array', items: { type: 'string' }, description: 'A list of strings.' },
+      channels: { type: 'array', items: { enum: ['stable', 'latest'] } },
+      overrides: { type: 'object', additionalProperties: { type: 'string' }, description: 'A map.' },
+      attribution: {
+        type: 'object',
+        properties: { commit: { type: 'boolean' }, pullRequest: { type: 'boolean' } },
+        description: 'A small object of scalars.',
+      },
+      permissions: {
+        type: 'object',
+        properties: {
+          allow: { type: 'array', items: { $ref: '#/$defs/rule' } },
+          defaultMode: { enum: ['default', 'plan'] },
+        },
+      },
+      // deep: an object with a nested object field — must stay json.
+      sandbox: {
+        type: 'object',
+        properties: { filesystem: { type: 'object', properties: { allowRead: { type: 'array', items: { type: 'string' } } } } },
+      },
+      // an array of objects — must stay json.
+      servers: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' } } } },
+    },
+  }
+  beforeEach(() => {
+    d = fs.mkdtempSync(path.join(os.tmpdir(), 'claudesight-comp-'))
+    fs.writeFileSync(path.join(d, 'claude-code-settings.schema.json'), JSON.stringify(compositeSchema))
+  })
+  afterEach(() => fs.rmSync(d, { recursive: true, force: true }))
+
+  const cat = () => readSettingsCatalog(d)
+
+  it('renders a list for an array of scalars, carrying the item control', () => {
+    const e = cat().entries.get('excludes')
+    expect(e.control).toBe('list')
+    expect(e.item.control).toBe('string')
+  })
+
+  it('carries item enum values for a list of enums', () => {
+    expect(cat().entries.get('channels').item).toMatchObject({ control: 'enum', enum: ['stable', 'latest'] })
+  })
+
+  it('renders a map for a string→string object', () => {
+    expect(cat().entries.get('overrides').control).toBe('map')
+  })
+
+  it('renders a one-level object of scalars with its fields', () => {
+    const e = cat().entries.get('attribution')
+    expect(e.control).toBe('object')
+    expect(e.fields.map((f) => `${f.key}:${f.control}`)).toEqual(['commit:boolean', 'pullRequest:boolean'])
+  })
+
+  it('renders permissions as an object whose fields are lists and enums', () => {
+    const e = cat().entries.get('permissions')
+    expect(e.control).toBe('object')
+    const byKey = Object.fromEntries(e.fields.map((f) => [f.key, f.control]))
+    expect(byKey).toEqual({ allow: 'list', defaultMode: 'enum' })
+  })
+
+  it('keeps an object-inside-object as json, never recursing composites', () => {
+    expect(cat().entries.get('sandbox').control).toBe('json')
+  })
+
+  it('keeps an array of objects as json', () => {
+    expect(cat().entries.get('servers').control).toBe('json')
   })
 })

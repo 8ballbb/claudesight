@@ -68,6 +68,32 @@ function emptyFor(entry) {
   return entry.type === 'array' ? [] : {}
 }
 
+// List edits — immutable, for the array<scalar> control. Each returns a new
+// array so the value the caller writes back is fresh.
+export function listAdd(arr, item) {
+  return [...(Array.isArray(arr) ? arr : []), item]
+}
+export function listSetAt(arr, i, item) {
+  const next = [...(Array.isArray(arr) ? arr : [])]
+  next[i] = item
+  return next
+}
+export function listRemoveAt(arr, i) {
+  return (Array.isArray(arr) ? arr : []).filter((_, j) => j !== i)
+}
+
+// Map edits — a string→string object shown as key/value rows. Rebuilt from the
+// row list on each change so renaming a key is just editing the pairs; an empty
+// key is dropped rather than written as "".
+export function pairsToObject(pairs) {
+  const out = {}
+  for (const [k, v] of pairs) if (k !== '') out[k] = v
+  return out
+}
+export function objectToPairs(obj) {
+  return Object.entries(obj && typeof obj === 'object' ? obj : {})
+}
+
 // Coerce a control's raw input to the type the setting expects. A number field
 // yields a number, a toggle a boolean; a string stays a string. Anything the
 // form cannot coerce cleanly is left to the JSON view.

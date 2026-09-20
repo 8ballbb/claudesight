@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import s from './app.module.css'
-import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce } from './settingsForm.js'
+import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, listSetAt, listRemoveAt, pairsToObject, objectToPairs } from './settingsForm.js'
 
 // The form view over a settings file. It edits the same JSON the raw view
 // edits — every change serialises straight back into the editor's text buffer
@@ -19,7 +19,8 @@ function Control({ entry, value, onChange, disabled }) {
     return (
       <select className={s.labelInput} value={value ?? ''} disabled={disabled}
         onChange={(e) => onChange(e.target.value)} aria-label={entry.key}>
-        {!entry.enum.includes(value) && <option value={value}>{String(value)} (not listed)</option>}
+        {(value === undefined || value === null || value === '') && <option value="">— not set —</option>}
+        {value != null && value !== '' && !entry.enum.includes(value) && <option value={value}>{String(value)} (not listed)</option>}
         {entry.enum.map((v) => <option key={v} value={v}>{v}</option>)}
       </select>
     )
@@ -37,9 +38,71 @@ function Control({ entry, value, onChange, disabled }) {
         onChange={(e) => onChange(e.target.value)} aria-label={entry.key} />
     )
   }
-  // json-control: objects, arrays, unions. Shown as read-only current value;
-  // the raw view is where these are edited, deliberately — a fabricated form
-  // for a nested shape would promise more than it can keep.
+  // A list of scalars: rows of the item control, plus an add. Editing the list
+  // hands back a whole new array, so it flows through the same onChange as any
+  // other value.
+  if (entry.control === 'list') {
+    const arr = Array.isArray(value) ? value : []
+    const itemEntry = { key: entry.key, control: entry.item?.control ?? 'string', enum: entry.item?.enum }
+    const blank = entry.item?.control === 'enum' ? (entry.item.enum?.[0] ?? '') : ''
+    return (
+      <div className={s.listCtl}>
+        {arr.map((v, i) => (
+          <div key={i} className={s.listRow}>
+            <Control entry={itemEntry} value={v} disabled={disabled}
+              onChange={(nv) => onChange(listSetAt(arr, i, nv))} />
+            {!disabled && <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => onChange(listRemoveAt(arr, i))}>×</button>}
+          </div>
+        ))}
+        {!disabled && <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => onChange(listAdd(arr, blank))}>+ add item</button>}
+        {arr.length === 0 && <span className={s.hint}>empty</span>}
+      </div>
+    )
+  }
+
+  // A string→string map: key/value rows rebuilt from the pairs on each edit.
+  if (entry.control === 'map') {
+    const pairs = objectToPairs(value)
+    const emit = (next) => onChange(pairsToObject(next))
+    return (
+      <div className={s.listCtl}>
+        {pairs.map(([k, v], i) => (
+          <div key={i} className={s.mapRow}>
+            <input className={s.labelInput} value={k} placeholder="key" disabled={disabled}
+              onChange={(e) => emit(pairs.map((p, j) => (j === i ? [e.target.value, p[1]] : p)))} />
+            <input className={s.labelInput} value={v} placeholder="value" disabled={disabled}
+              onChange={(e) => emit(pairs.map((p, j) => (j === i ? [p[0], e.target.value] : p)))} />
+            {!disabled && <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => emit(pairs.filter((_, j) => j !== i))}>×</button>}
+          </div>
+        ))}
+        {!disabled && <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => emit([...pairs, ['', '']])}>+ add pair</button>}
+        {pairs.length === 0 && <span className={s.hint}>empty</span>}
+      </div>
+    )
+  }
+
+  // A one-level object: each field rendered by its own control, editing the
+  // nested object immutably. Fields are leaves, lists or maps — never another
+  // object — so this does not recurse without bound.
+  if (entry.control === 'object') {
+    const obj = value && typeof value === 'object' ? value : {}
+    return (
+      <div className={s.objectCtl}>
+        {entry.fields.map((f) => (
+          <div key={f.key} className={s.objectField}>
+            <span className={s.fieldKey}>{f.key}</span>
+            <Control entry={f} value={obj[f.key]} disabled={disabled}
+              onChange={(nv) => onChange(setValue(obj, f.key, nv))} />
+            {f.description && <p className={s.hint}>{f.description}</p>}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Anything deeper — nested objects, arrays of objects, unions. Shown as its
+  // current value; the raw view is where these are edited, deliberately: a
+  // fabricated form for a nested shape would promise more than it can keep.
   return <code className={s.cmd}>{JSON.stringify(value)} — edit in JSON view</code>
 }
 

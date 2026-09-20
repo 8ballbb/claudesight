@@ -921,3 +921,11 @@
 .available summary { cursor: pointer; }
 .availRow { border-left: 2px solid var(--line); padding: 2px 0 2px 12px; display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: baseline; }
 .availType { font-family: var(--mono, monospace); font-size: 11px; color: var(--faint); }
+
+/* Composite settings controls (SettingsForm.jsx). */
+.listCtl { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.listRow { display: flex; gap: 6px; align-items: center; width: 100%; }
+.mapRow { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; width: 100%; }
+.objectCtl { display: flex; flex-direction: column; gap: 10px; border-left: 1px solid var(--line); padding-left: 12px; margin-top: 4px; }
+.objectField { display: flex; flex-direction: column; gap: 4px; }
+.fieldKey { font-family: var(--mono, monospace); font-size: 12px; color: var(--dim); }

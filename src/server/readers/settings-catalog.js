@@ -34,27 +34,68 @@ function deref(node, root, seen = new Set()) {
   return cur ?? {}
 }
 
-// The one control the UI can render for a value: a boolean toggle, an enum
-// dropdown, a bounded number, a plain string — or `json` for anything richer
-// (objects, arrays, unions), which the editor handles as structured JSON. A
-// control the schema does not pin down degrades to `json`, never to a guess.
-function controlFor(schema, root) {
-  const s = deref(schema, root)
+// Above this many fixed fields an object is a directory (env), not a form.
+const OBJECT_FIELD_CAP = 24
+
+const scalarType = (s) => (Array.isArray(s.type) ? s.type.find((t) => t !== 'null') ?? s.type[0] : s.type ?? null)
+
+// The leaf controls — a single value the UI renders directly. Returns null for
+// anything that is not a leaf, so callers can decide what to do with it.
+function leafControl(s) {
   if (Array.isArray(s.enum)) return 'enum'
-  const type = Array.isArray(s.type) ? s.type.find((t) => t !== 'null') : s.type
+  const type = scalarType(s)
   if (type === 'boolean') return 'boolean'
   if (type === 'integer' || type === 'number') return 'number'
   if (type === 'string') return 'string'
+  return null
+}
+
+// The control the UI renders for a value. Beyond the leaves it knows three
+// composites, and no more: a `list` of leaves, a `map` of string→string, and a
+// one-level `object` whose every field is itself a leaf, list or map. Anything
+// deeper — an object inside an object, a list of objects, a union — is `json`,
+// edited as text. The depth cap is deliberate: a general "render any schema"
+// form is a sinkhole whose payoff inverts with depth, so the composites stop
+// one level down and never recurse into each other.
+function controlFor(schema, root, depth = 0) {
+  const s = deref(schema, root)
+  const leaf = leafControl(s)
+  if (leaf) return leaf
+  const type = scalarType(s)
+
+  if (type === 'array') {
+    return leafControl(deref(s.items ?? {}, root)) ? 'list' : 'json'
+  }
+  if (type === 'object') {
+    const props = s.properties ?? {}
+    if (Object.keys(props).length === 0) {
+      const ap = s.additionalProperties
+      const apType = ap && typeof ap === 'object' ? scalarType(deref(ap, root)) : null
+      return apType === 'string' ? 'map' : 'json'
+    }
+    // A fixed-key object becomes a form only at the top level, and only when
+    // every field is form-able one level down (a leaf, a list, or a map). One
+    // deep or irregular field, and the whole object stays json — honest over
+    // a half-rendered form.
+    if (depth > 0) return 'json'
+    // An object form serves a handful of named fields. Past that it is really a
+    // directory — env documents 340 keys and also allows arbitrary ones — which
+    // needs search and collapse, a separate increment. Until then it stays json
+    // rather than dumping hundreds of fields into a flat form.
+    if (Object.keys(props).length > OBJECT_FIELD_CAP) return 'json'
+    const formable = Object.values(props).every((p) => controlFor(p, root, depth + 1) !== 'json')
+    return formable ? 'object' : 'json'
+  }
   return 'json'
 }
 
-function entryFor(key, schema, root) {
+function entryFor(key, schema, root, depth = 0) {
   const s = deref(schema, root)
-  const type = Array.isArray(s.type) ? s.type.find((t) => t !== 'null') ?? s.type[0] : s.type ?? null
-  return {
+  const control = controlFor(schema, root, depth)
+  const entry = {
     key,
-    control: controlFor(schema, root),
-    type,
+    control,
+    type: scalarType(s),
     description: s.description ?? null,
     enum: Array.isArray(s.enum) ? s.enum : null,
     default: 'default' in s ? s.default : undefined,
@@ -62,9 +103,20 @@ function entryFor(key, schema, root) {
     max: typeof s.maximum === 'number' ? s.maximum : null,
     deprecated: s.deprecated === true,
     // The raw sub-schema, so the editor can show the shape of a json-control
-    // setting without this reader having to model every nested case.
+    // setting without this reader having to model every nested case. Stripped
+    // from the wire payload; `item`/`fields` below carry what the form needs.
     schema: s,
   }
+  if (control === 'list') {
+    const it = deref(s.items ?? {}, root)
+    entry.item = { control: leafControl(it), enum: Array.isArray(it.enum) ? it.enum : null }
+  }
+  if (control === 'object') {
+    // One level of recursion, capped by controlFor's depth guard: these fields
+    // are leaves, lists or maps, never further objects.
+    entry.fields = Object.entries(s.properties ?? {}).map(([k, v]) => entryFor(k, v, root, depth + 1))
+  }
+  return entry
 }
 
 export function readSettingsCatalog(dir = dataDir) {
