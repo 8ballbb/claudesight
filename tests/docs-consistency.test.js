@@ -142,6 +142,7 @@ describe('claims the docs make about behaviour', () => {
       rule: /\ba rule\b/.test(adding),
       skill: /\ba skill\b/.test(adding),
       agent: /\ba subagent\b/.test(adding),
+      settings: /settings\.json/.test(adding),
     }
     for (const kind of CREATABLE) {
       expect(named[kind], `the "Adding artifacts" section should name ${kind}`).toBe(true)

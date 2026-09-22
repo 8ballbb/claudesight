@@ -106,7 +106,7 @@ describe('offering only what can succeed', () => {
   it('always offers the named kinds, which can have many', async () => {
     const { creatorsFor } = await import('../src/ui/NewArtifact.jsx')
     const c = creatorsFor({ inv: { groups: [] }, onCreated: vi.fn(), post: vi.fn() })
-    expect(Object.keys(c).sort()).toEqual(['agent', 'memory', 'rule', 'skill'])
+    expect(Object.keys(c).sort()).toEqual(['agent', 'memory', 'rule', 'settings', 'skill'])
   })
 })
 
@@ -125,5 +125,28 @@ describe('the absent CLAUDE.md row', () => {
     const { creatorsFor } = await import('../src/ui/NewArtifact.jsx')
     const inv = { groups: [{ kind: 'memory', items: [{ label: 'CLAUDE.md', state: 'ok' }] }] }
     expect(creatorsFor({ inv, onCreated: vi.fn(), post: vi.fn() }).memory).toBe(undefined)
+  })
+})
+
+describe('creating settings.json when a user has none', () => {
+  it('offers the creator when the settings group has no real file', async () => {
+    const { creatorsFor } = await import('../src/ui/NewArtifact.jsx')
+    const inv = { groups: [{ kind: 'settings', items: [] }] }
+    expect(creatorsFor({ inv, onCreated: vi.fn(), post: vi.fn() }).settings).toBeTruthy()
+  })
+  it('offers it when only an absent row is shown', async () => {
+    const { creatorsFor } = await import('../src/ui/NewArtifact.jsx')
+    const inv = { groups: [{ kind: 'settings', items: [{ label: 'settings.json', state: 'absent' }] }] }
+    expect(creatorsFor({ inv, onCreated: vi.fn(), post: vi.fn() }).settings).toBeTruthy()
+  })
+  it('withholds it once a real settings.json exists', async () => {
+    const { creatorsFor } = await import('../src/ui/NewArtifact.jsx')
+    const inv = { groups: [{ kind: 'settings', items: [{ label: 'settings.json', state: 'ok' }] }] }
+    expect(creatorsFor({ inv, onCreated: vi.fn(), post: vi.fn() }).settings).toBe(undefined)
+  })
+  it('the form for settings asks for nothing, like CLAUDE.md', () => {
+    setup('settings'); openForm('settings.json')
+    expect(screen.queryByLabelText(/name/i)).toBe(null)
+    expect(screen.queryByLabelText(/description/i)).toBe(null)
   })
 })

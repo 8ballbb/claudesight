@@ -162,8 +162,50 @@ export function SettingsForm({ text, onChange, editable, post }) {
         </p>
       )}
 
+      {/* Adding is first, because it is what people come here unsure how to do:
+          a labelled search is the answer to "how do I add a setting". What is
+          already set, and anything unrecognised, read below it. */}
+      {editable && (() => {
+        // Every key Claude Code accepts that this file does not set yet — the
+        // point of the catalogue. 130-odd of them, so search over key AND
+        // description ("verbose" finds `verbose`; "tool output" finds it too).
+        // Empty box shows a short preview with an honest count, not a wall.
+        const PREVIEW = 6
+        const matches = filterAvailable(available, query)
+        const searching = query.trim().length > 0
+        const shown = searching ? matches : matches.slice(0, PREVIEW)
+        return (
+          <div className={s.addSection}>
+            <h3 className={s.bandHead}>add a setting <span className={s.groupCount}>{available.length} available</span></h3>
+            <input
+              className={s.labelInput}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="search all settings — name or what it does (e.g. verbose)"
+              aria-label="Search settings to add"
+            />
+            <p className={s.hint}>
+              {searching
+                ? (matches.length === 0 ? `Nothing matches "${query.trim()}".` : `${matches.length} match${matches.length === 1 ? '' : 'es'} — click + add, then set the value below and Save.`)
+                : `Type a name or what you want (e.g. "verbose"). Showing ${shown.length} of ${available.length}.`}
+            </p>
+            <ul className={s.bandList}>
+              {shown.map((e) => (
+                <li key={e.key} className={s.availRow}>
+                  <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => emit(addKey(value, e))}>+ add</button>
+                  <span className={s.setKey}>{e.key}</span>
+                  {e.deprecated && <span className={`${s.chip} ${s.caution}`}>deprecated</span>}
+                  <span className={s.availType}>{e.control === 'enum' ? e.enum.join(' | ') : e.type}</span>
+                  {e.description && <p className={s.hint}>{e.description}</p>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
+
       <h3 className={s.bandHead}>set here <span className={s.groupCount}>{set.length}</span></h3>
-      {set.length === 0 && <p className={s.hint}>Nothing set in this file yet.</p>}
+      {set.length === 0 && <p className={s.hint}>Nothing set in this file yet — add one above.</p>}
       <ul className={s.bandList}>
         {set.map((e) => (
           <SetRow key={e.key} entry={e} value={e.value} disabled={!editable}
@@ -188,46 +230,6 @@ export function SettingsForm({ text, onChange, editable, post }) {
           </ul>
         </>
       )}
-
-      {editable && (() => {
-        // Every key Claude Code accepts that this file does not set yet — the
-        // point of the catalogue. 130-odd of them, so a collapsed list was
-        // unusable: you could not find "verbose" in it. Search over key AND
-        // description, and when the box is empty show a capped preview with an
-        // honest count rather than a wall or a silent truncation.
-        const PREVIEW = 12
-        const matches = filterAvailable(available, query)
-        const searching = query.trim().length > 0
-        const shown = searching ? matches : matches.slice(0, PREVIEW)
-        return (
-          <div className={s.addSection}>
-            <h3 className={s.bandHead}>add a setting <span className={s.groupCount}>{available.length} available</span></h3>
-            <input
-              className={s.labelInput}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="search all settings — name or what it does (e.g. verbose)"
-              aria-label="Search settings to add"
-            />
-            <p className={s.hint}>
-              {searching
-                ? (matches.length === 0 ? `Nothing matches "${query.trim()}".` : `${matches.length} match${matches.length === 1 ? '' : 'es'}.`)
-                : `Showing ${shown.length} of ${available.length} — type to find any of them.`}
-            </p>
-            <ul className={s.bandList}>
-              {shown.map((e) => (
-                <li key={e.key} className={s.availRow}>
-                  <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => emit(addKey(value, e))}>+ add</button>
-                  <span className={s.setKey}>{e.key}</span>
-                  {e.deprecated && <span className={`${s.chip} ${s.caution}`}>deprecated</span>}
-                  <span className={s.availType}>{e.control === 'enum' ? e.enum.join(' | ') : e.type}</span>
-                  {e.description && <p className={s.hint}>{e.description}</p>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      })()}
     </div>
   )
 }

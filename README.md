@@ -67,6 +67,12 @@ you can change a thing. Everything starts folded; what you expand is remembered.
 
 ## Settings
 
+If you have no `settings.json`, the settings group offers **+ new settings.json**
+to create an empty one. Open a settings file and the form's **add a setting**
+search — the first thing in the panel — lets you find any key by name or by what
+it does and add it with one click; it then appears under **set here** to give a
+value, and you Save.
+
 The settings file holds only what you have set; Claude Code accepts around 140
 keys, and you cannot add one you cannot see. Open a `settings.json` and the
 editor offers a form view over the same JSON, in three bands: **set here**,
@@ -94,7 +100,7 @@ it writes.
 
 ## Adding artifacts
 
-Four kinds can be created, at either scope: `CLAUDE.md`, a rule, a skill, and a subagent.
+Five kinds can be created, at either scope: `CLAUDE.md`, a rule, a skill, a subagent, and an empty `settings.json` for when you have none yet.
 Each asks for only what it needs — a rule for a name, a skill and a subagent for a
 description as well, `CLAUDE.md` for nothing, since its filename is fixed. What is written
 is the minimum valid file and nothing more: no `permissionMode`, no `hooks`, and no

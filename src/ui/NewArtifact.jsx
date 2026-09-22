@@ -10,6 +10,7 @@ const KIND = {
   rule: { label: 'rule', name: true, description: false },
   skill: { label: 'skill', name: true, description: true },
   agent: { label: 'subagent', name: true, description: true },
+  settings: { label: 'settings.json', name: false, description: false },
 }
 
 const DESCRIPTION_HINT = {
@@ -95,10 +96,17 @@ export function creatorsFor({ project, onCreated, post, inv }) {
   // CLAUDE.md that does not exist yet, so you can see where it would go.
   // Keying on the label alone hid the creator exactly when it was useful.
   const haveClaudeMd = memory.some((i) => i.label === 'CLAUDE.md' && i.state !== 'absent')
+  // Same for settings.json: a fixed filename, so once one exists there is
+  // nothing to create — you edit it. Offered only when it is genuinely absent,
+  // which is the case a user with no settings needs.
+  const settings = inv?.groups?.find((g) => g.kind === 'settings')?.items ?? []
+  const haveSettings = settings.some((i) => i.label === 'settings.json' && i.state !== 'absent')
+
+  const singletons = { memory: haveClaudeMd, settings: haveSettings }
 
   const out = {}
   for (const kind of Object.keys(KIND)) {
-    if (kind === 'memory' && haveClaudeMd) continue
+    if (singletons[kind]) continue
     out[kind] = (
       <NewArtifact key={kind} kind={kind} project={project} onCreated={onCreated} post={post} />
     )

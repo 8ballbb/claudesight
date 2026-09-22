@@ -49,7 +49,7 @@ Describe what Claude should do when this skill fires.
 // people onto a deprecated mechanism is worse than no creator. Hook scripts
 // are absent too: creating an executable shell file is the riskiest act in
 // this family. Workflows are written by Claude, not by hand.
-export const CREATABLE = new Set(['skill', 'agent', 'rule', 'memory'])
+export const CREATABLE = new Set(['skill', 'agent', 'rule', 'memory', 'settings'])
 
 // Memory has a fixed filename, so it takes no name; the others are named by
 // the user and the name IS the identifier Claude Code uses.
@@ -66,6 +66,10 @@ export function targetFor({ kind, root, projectPath, name }) {
     // Both ./CLAUDE.md and ./.claude/CLAUDE.md are valid project memory.
     // The root-level one is what /init writes and where a reader looks.
     case 'memory': return path.join(projectPath ?? root, 'CLAUDE.md')
+    // An empty settings.json, so a user with none has somewhere to add the
+    // settings they want. In a project it lives under .claude/ (root is the
+    // project's .claude), at global scope it is the config root itself.
+    case 'settings': return path.join(root, 'settings.json')
     default: return null
   }
 }
@@ -107,6 +111,8 @@ function templateFor(kind, name, description) {
   if (kind === 'skill') return skillTemplate(name, description)
   if (kind === 'agent') return agentTemplate(name, description)
   if (kind === 'rule') return ruleTemplate(name)
+  // An empty object — nothing this app invented, ready for the form to add to.
+  if (kind === 'settings') return '{}\n'
   return memoryTemplate()
 }
 

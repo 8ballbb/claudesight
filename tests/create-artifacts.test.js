@@ -22,8 +22,8 @@ const make = (over) => createArtifact({ root, name: 'thing', description: 'what 
 const read = (p) => fs.readFileSync(p, 'utf8')
 
 describe('which kinds can be created', () => {
-  it('offers exactly the four Tier 1 kinds', () => {
-    expect([...CREATABLE].sort()).toEqual(['agent', 'memory', 'rule', 'skill'])
+  it('offers exactly the creatable kinds', () => {
+    expect([...CREATABLE].sort()).toEqual(['agent', 'memory', 'rule', 'settings', 'skill'])
   })
 
   it('refuses a kind that is not creatable, naming it', () => {
@@ -136,5 +136,25 @@ describe('rules that apply to every kind', () => {
     })
     expect(r.ok).toBe(true)
     expect(fs.existsSync(path.join(project, '.claude', 'skills', 'proj-skill', 'SKILL.md'))).toBe(true)
+  })
+})
+
+describe('creating a settings.json for a user who has none', () => {
+  it('is offered as a creatable kind', () => {
+    expect([...CREATABLE]).toContain('settings')
+  })
+  it('lands at the config root globally, and under .claude in a project', () => {
+    expect(targetFor({ kind: 'settings', root })).toBe(path.join(root, 'settings.json'))
+    expect(targetFor({ kind: 'settings', root: path.join(project, '.claude'), projectPath: project }))
+      .toBe(path.join(project, '.claude', 'settings.json'))
+  })
+  it('creates an empty object, nothing invented, needing no name', () => {
+    const r = createArtifact({ root, kind: 'settings' })
+    expect(r.ok).toBe(true)
+    expect(read(r.path)).toBe('{}\n')
+  })
+  it('refuses to clobber a settings.json that already exists', () => {
+    createArtifact({ root, kind: 'settings' })
+    expect(createArtifact({ root, kind: 'settings' }).error).toBe('exists')
   })
 })
