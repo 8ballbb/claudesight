@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.0 — 2026-09-22
+
+### Added
+
+- make adding a setting the obvious path — including when you have none
+
 ## v0.9.0 — 2026-09-20
 
 ### Added
