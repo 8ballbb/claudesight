@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import s from './app.module.css'
+import { filterGroups, countItems } from './inventoryFilter.js'
 
 // A reader can fail four distinguishable ways, and the whole point of this
 // tool is that they never collapse into a bare zero.
@@ -223,9 +224,10 @@ function Rows({ items, openId, onOpen, showWritability = true }) {
 
 // Everything starts folded. The page opens as a table of contents; what you
 // expand is remembered, so the layout you arrange is the one you come back to.
-function Band({ band, stateKey, openId, onOpen, showNote = true }) {
+function Band({ band, stateKey, openId, onOpen, showNote = true, forceOpen = false }) {
   const mine = band.key === 'yours'
   const [open, toggle] = useOpen(stateKey, false)
+  const shown = open || forceOpen
   const bodyId = `band-${stateKey.replace(/[^a-z0-9]+/gi, '-')}`
   return (
     <div className={s.band}>
@@ -235,7 +237,7 @@ function Band({ band, stateKey, openId, onOpen, showNote = true }) {
         <span className={s.bandCount}>{band.items.length}</span>
         {showNote && band.note && <span className={s.bandNote}>{band.note}</span>}
       </button>
-      {open && (
+      {shown && (
         <div id={bodyId}>
           <Rows items={band.items} openId={openId} onOpen={onOpen} showWritability={mine} />
         </div>
@@ -251,8 +253,9 @@ function Band({ band, stateKey, openId, onOpen, showNote = true }) {
 // nothing here executes anything.
 const NOT_CHECKED = 'Not checked: exit code, output shape, whether the script actually runs. Nothing here is executed.'
 
-function Group({ scope, group, openId, onOpen, extras }) {
+function Group({ scope, group, openId, onOpen, extras, forceOpen = false }) {
   const [open, toggle] = useOpen(`${scope}:${group.kind}`, false)
+  const shown = open || forceOpen
   const bands = bandsFor(group.items)
   const editable = group.items.filter((i) => EDITABLE.has(i.writability.class)).length
   const locked = group.items.length - editable
@@ -280,7 +283,7 @@ function Group({ scope, group, openId, onOpen, extras }) {
         <span className={s.groupRule} />
         {group.items.length > 0 && <span className={s.groupSplit}>{split}</span>}
       </h2>
-      {open && (
+      {shown && (
         <div id={bodyId}>
           {group.kind === 'scripts' && <p className={s.hint}>{NOT_CHECKED}</p>}
           {extras}
@@ -294,6 +297,7 @@ function Group({ scope, group, openId, onOpen, extras }) {
                 openId={openId}
                 onOpen={onOpen}
                 showNote={!headerSaysItAll}
+                forceOpen={forceOpen}
               />
             ))}
         </div>
@@ -403,17 +407,45 @@ function Notice({ note }) {
 }
 
 export default function Inventory({ inv, openId, onOpen, extras, scope = 'global' }) {
+  const [query, setQuery] = useState('')
+  const searching = query.trim().length > 0
   const empty = inv.groups.every((g) => g.items.length === 0)
+
+  // While searching, show only groups with matches, force them open so the
+  // matches are actually visible, and drop the create affordances — you are
+  // finding, not adding. Otherwise the page is exactly as before.
+  const groups = searching
+    ? filterGroups(inv.groups, query)
+    : inv.groups.filter((g) => g.items.length > 0 || extras?.[g.kind])
+  const matches = searching ? countItems(groups) : null
+
   return (
     <div>
-      {inv.groups.filter((g) => g.items.length > 0 || extras?.[g.kind]).map((g) => (
+      {!empty && (
+        <input
+          className={s.inventorySearch}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="filter — a name, a description, a command…"
+          aria-label="Filter artifacts"
+        />
+      )}
+      {searching && (
+        <p className={s.hint}>
+          {matches === 0
+            ? `Nothing matches "${query.trim()}".`
+            : `${matches} match${matches === 1 ? '' : 'es'} in ${groups.length} group${groups.length === 1 ? '' : 's'}.`}
+        </p>
+      )}
+      {groups.map((g) => (
         <Group
           key={g.kind}
           scope={scope}
           group={g}
           openId={openId}
           onOpen={onOpen}
-          extras={extras?.[g.kind]}
+          extras={searching ? undefined : extras?.[g.kind]}
+          forceOpen={searching}
         />
       ))}
       {empty && <p className={s.hint}>No Claude files here. Claude has run in this directory, but nothing is configured.</p>}

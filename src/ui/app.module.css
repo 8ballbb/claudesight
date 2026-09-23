@@ -932,3 +932,11 @@
 
 /* The searchable "add a setting" section (SettingsForm.jsx). */
 .addSection { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+
+/* Inventory-wide filter box (Inventory.jsx). */
+.inventorySearch {
+  width: 100%; box-sizing: border-box; margin: 0 0 14px;
+  background: var(--well); border: 1px solid var(--line); border-radius: var(--radius);
+  color: var(--ink); font-family: var(--ui); font-size: 13px; padding: 8px 12px;
+}
+.inventorySearch:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }

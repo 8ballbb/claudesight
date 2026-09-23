@@ -233,14 +233,14 @@ until `npm run build`.
 
 ## Not built yet
 
-No search, sort or filter anywhere. No keyboard navigation beyond Escape. No sessions
+The inventory has a filter across every group (`inventoryFilter.js`); no sort. No keyboard navigation beyond Escape. No sessions
 view, though transcripts are already parsed for project discovery. No token-cost
 accounting — and note that the app could only ever estimate it by measuring text, since
 the real figures come from Claude Code itself; an estimate presented as authoritative
 would be a new way of lying. Managed-policy source display. No multi-machine anything.
 
-**What can be created, and what deliberately cannot.** Four kinds, at both scopes:
-CLAUDE.md, rules, skills and subagents. Those are the artifacts that are user-authored,
+**What can be created, and what deliberately cannot.** Five kinds, at both scopes:
+CLAUDE.md, rules, skills, subagents, and an empty settings.json for a user who has none. Those are the artifacts that are user-authored,
 already visible in the app, safe to create, and current. Commands are NOT among them
 even though the app lists them: the docs mark `.claude/commands/*.md` deprecated in
 favour of skills, and a creator that steers people onto a deprecated mechanism is worse

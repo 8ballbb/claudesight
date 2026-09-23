@@ -60,7 +60,7 @@ A project whose directory no longer exists is hidden behind a count you can open
 never cleaned up: `gone` means "not there right now", which is also what an unmounted
 volume and a removed worktree look like.
 
-Items are grouped by kind and banded by owner, because ownership is what decides whether
+A filter box at the top of each view narrows every group at once — by name, description, or the command a hook runs — and expands the matches. Items are grouped by kind and banded by owner, because ownership is what decides whether
 you can change a thing. Everything starts folded; what you expand is remembered.
 
 ![The projects view: discovered projects on the left, the selected package on the right — a CLAUDE.md inherited from the repository root, and an MCP server whose command is not on PATH flagged as broken](docs/img/projects.jpg)
