@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.0 — 2026-09-23
+
+### Added
+
+- filter the whole inventory at once
+
 ## v0.10.0 — 2026-09-22
 
 ### Added
