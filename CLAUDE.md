@@ -233,8 +233,11 @@ until `npm run build`.
 
 ## Not built yet
 
-The inventory has a filter across every group (`inventoryFilter.js`); no sort. No keyboard navigation beyond Escape. No sessions
-view, though transcripts are already parsed for project discovery. No token-cost
+The inventory has a filter across every group (`inventoryFilter.js`); no sort. No keyboard navigation beyond Escape. There is a read-only
+sessions view per project (`readers/sessions.js`): the transcripts that ran in it,
+listed from file stats plus a capped title read, with metadata and the human prompts on
+open. The dir is found by mapping the path to Claude Code's slug (`/`, `_`, `.` all become
+`-`), because the slug is lossy and cannot be decoded back. Transcripts stay read-only. No token-cost
 accounting — and note that the app could only ever estimate it by measuring text, since
 the real figures come from Claude Code itself; an estimate presented as authoritative
 would be a new way of lying. Managed-policy source display. No multi-machine anything.

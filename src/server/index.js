@@ -5,6 +5,7 @@ import path from 'node:path'
 import { createSecurity } from './security.js'
 import { buildInventory, buildProjectInventory } from './api.js'
 import { readSettingsCatalog } from './readers/settings-catalog.js'
+import { listSessions, readSession } from './readers/sessions.js'
 import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
 import { listVersions, createVersion, readVersion, deleteVersion, compareVersion } from './versions.js'
@@ -198,6 +199,33 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
           // eslint-disable-next-line no-unused-vars
           const { table, ...safe } = built
           return json(res, 200, safe)
+        }
+
+        // A project's sessions — the transcripts that ran in it. Same guard as
+        // the inventory: a project must be discovered first, so the client
+        // never names an arbitrary directory. Listing reads only file stats and
+        // a capped title slice, never whole transcripts.
+        if (url.pathname === '/api/sessions' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          const dir = path.resolve(String(body.path ?? ''))
+          if (!allowed.has(dir)) {
+            return json(res, 403, { error: 'not-discovered', reason: 'Open this project from the list first.' })
+          }
+          return json(res, 200, listSessions(root, dir))
+        }
+
+        // One session's detail: metadata and the human prompts. The id is
+        // resolved inside the project's own transcript dir and confirmed to
+        // stay there — never a path from the client.
+        if (url.pathname === '/api/session' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          const dir = path.resolve(String(body.path ?? ''))
+          if (!allowed.has(dir)) {
+            return json(res, 403, { error: 'not-discovered', reason: 'Open this project from the list first.' })
+          }
+          return json(res, 200, readSession(root, dir, String(body.id ?? '')))
         }
 
         if (url.pathname === '/api/create' && req.method === 'POST') {

@@ -3,6 +3,7 @@ import Inventory, { Notices } from './Inventory.jsx'
 import Editor from './Editor.jsx'
 import s from './app.module.css'
 import { creatorsFor } from './NewArtifact.jsx'
+import { SessionsPanel } from './SessionsPanel.jsx'
 
 const LAST_PROJECT = 'claudesight.lastProject'
 
@@ -294,6 +295,7 @@ export default function Projects({ post, guard, frozen }) {
                 extras={creatorsFor({ project: selected.path, onCreated: afterCreate, post, inv })}
               />
             )}
+            {inv && <SessionsPanel project={selected.path} post={post} />}
           </section>
         )}
         {!selected && (
