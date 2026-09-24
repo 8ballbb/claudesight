@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.12.0 — 2026-09-24
+
+### Added
+
+- a read-only sessions view per project
+
 ## v0.11.0 — 2026-09-23
 
 ### Added
