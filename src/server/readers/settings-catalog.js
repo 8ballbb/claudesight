@@ -68,20 +68,26 @@ function controlFor(schema, root, depth = 0) {
   }
   if (type === 'object') {
     const props = s.properties ?? {}
+    const ap = s.additionalProperties
+    const apType = ap && typeof ap === 'object' ? scalarType(deref(ap, root)) : null
+
+    // A string map with no fixed keys — modelOverrides and friends.
     if (Object.keys(props).length === 0) {
-      const ap = s.additionalProperties
-      const apType = ap && typeof ap === 'object' ? scalarType(deref(ap, root)) : null
       return apType === 'string' ? 'map' : 'json'
     }
+    // A documented string map: many named string vars PLUS arbitrary ones —
+    // env, uniquely. Its own control: a searchable set/add form over the
+    // documented keys, one level down, which is why the flat object form (and
+    // its field cap) does not fit. The documented keys are fetched on demand,
+    // not inlined into every catalogue load.
+    if (apType === 'string') return 'envmap'
     // A fixed-key object becomes a form only at the top level, and only when
     // every field is form-able one level down (a leaf, a list, or a map). One
     // deep or irregular field, and the whole object stays json — honest over
     // a half-rendered form.
     if (depth > 0) return 'json'
-    // An object form serves a handful of named fields. Past that it is really a
-    // directory — env documents 340 keys and also allows arbitrary ones — which
-    // needs search and collapse, a separate increment. Until then it stays json
-    // rather than dumping hundreds of fields into a flat form.
+    // An object form serves a handful of named fields; past that it is a
+    // directory, not a form.
     if (Object.keys(props).length > OBJECT_FIELD_CAP) return 'json'
     const formable = Object.values(props).every((p) => controlFor(p, root, depth + 1) !== 'json')
     return formable ? 'object' : 'json'
@@ -117,6 +123,23 @@ function entryFor(key, schema, root, depth = 0) {
     entry.fields = Object.entries(s.properties ?? {}).map(([k, v]) => entryFor(k, v, root, depth + 1))
   }
   return entry
+}
+
+// The documented sub-keys of a setting the UI edits as a searchable map — env's
+// ~340 variables, each with its description. Fetched on demand when that editor
+// opens, so the ~34KB of env docs never rides along with every catalogue load.
+export function readSettingFields(key, dir = dataDir) {
+  const catalog = readSettingsCatalog(dir)
+  if (catalog.state !== 'ok') return { state: catalog.state, fields: [] }
+  const entry = catalog.entries.get(key)
+  if (!entry || entry.control !== 'envmap') return { state: 'absent', fields: [] }
+  const props = entry.schema.properties ?? {}
+  const fields = Object.entries(props).map(([k, v]) => ({
+    key: k,
+    description: v?.description ?? null,
+    deprecated: v?.deprecated === true,
+  }))
+  return { state: fields.length ? 'ok' : 'empty', fields }
 }
 
 export function readSettingsCatalog(dir = dataDir) {

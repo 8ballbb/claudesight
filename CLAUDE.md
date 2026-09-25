@@ -249,7 +249,7 @@ even though the app lists them: the docs mark `.claude/commands/*.md` deprecated
 favour of skills, and a creator that steers people onto a deprecated mechanism is worse
 than no creator. Hook scripts are not creatable either — writing an executable shell
 file is the riskiest act in this family. Workflows are written by Claude, not by hand.
-Output styles, `.mcp.json` entries and settings files need a reader or a gate first.
+Output styles need a reader first; `.mcp.json` entries need one too. env is now editable.
 A scheduled task's prompt is editable but a task cannot be created: the schedule, folder
 and model are Claude Desktop's own state, so offering to create one would promise
 something the file cannot deliver.

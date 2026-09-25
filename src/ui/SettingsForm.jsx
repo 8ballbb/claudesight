@@ -8,7 +8,96 @@ import { bandsFor, enumAdvice, setValue, removeKey, addKey, coerce, listAdd, lis
 // gated write. Anything the catalogue does not model stays editable in the raw
 // view; the form never becomes a ceiling.
 
-function Control({ entry, value, onChange, disabled }) {
+// env is a documented string map — ~340 named variables plus arbitrary custom
+// ones — so it gets the same three-band shape as the settings form itself, one
+// level down: what is set here, documented variables you could add (searchable),
+// and a way to add a custom one. The documented list is fetched on open, never
+// shipped with the catalogue.
+function EnvMap({ entry, value, onChange, disabled, post }) {
+  const [fields, setFields] = useState(null)
+  const [query, setQuery] = useState('')
+  const [customKey, setCustomKey] = useState('')
+
+  useEffect(() => {
+    let live = true
+    post('/api/setting-fields', { key: entry.key })
+      .then((r) => { if (live) setFields(r.state === 'ok' ? r.fields : []) })
+      .catch(() => { if (live) setFields([]) })
+    return () => { live = false }
+  }, [entry.key, post])
+
+  const env = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  const documented = new Map((fields ?? []).map((f) => [f.key, f]))
+  const setEntries = Object.entries(env)
+  const available = (fields ?? []).filter((f) => !(f.key in env))
+
+  if (fields === null) return <p className={s.loading}>Reading the variable catalogue…</p>
+
+  const PREVIEW = 6
+  const matches = filterAvailable(available, query)
+  const searching = query.trim().length > 0
+  const shown = searching ? matches : matches.slice(0, PREVIEW)
+
+  const addCustom = () => {
+    const k = customKey.trim()
+    if (!k) return
+    setCustomKey('')
+    onChange(setValue(env, k, ''))
+  }
+
+  return (
+    <div className={s.envMap}>
+      <h4 className={s.bandHead}>set here <span className={s.groupCount}>{setEntries.length}</span></h4>
+      {setEntries.length === 0 && <p className={s.hint}>No variables set — add one below.</p>}
+      <ul className={s.bandList}>
+        {setEntries.map(([k, v]) => (
+          <li key={k} className={s.envRow}>
+            <div className={s.envHead}>
+              <span className={s.setKey}>{k}</span>
+              {!documented.has(k) && <span className={`${s.chip} ${s.caution}`}>custom</span>}
+              <input className={s.labelInput} value={typeof v === 'string' ? v : JSON.stringify(v)} disabled={disabled}
+                onChange={(e) => onChange(setValue(env, k, e.target.value))} aria-label={k} />
+              {!disabled && <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => onChange(removeKey(env, k))}>remove</button>}
+            </div>
+            {documented.get(k)?.description && <p className={s.hint}>{documented.get(k).description}</p>}
+          </li>
+        ))}
+      </ul>
+
+      {!disabled && (
+        <>
+          <h4 className={s.bandHead}>add a variable <span className={s.groupCount}>{available.length} documented</span></h4>
+          <input className={s.labelInput} value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="search variables — name or what it does (e.g. telemetry)" aria-label="Search environment variables" />
+          <p className={s.hint}>
+            {searching
+              ? (matches.length === 0 ? `Nothing matches "${query.trim()}".` : `${matches.length} match${matches.length === 1 ? '' : 'es'}.`)
+              : `Showing ${shown.length} of ${available.length} — type to find any of them.`}
+          </p>
+          <ul className={s.bandList}>
+            {shown.map((f) => (
+              <li key={f.key} className={s.availRow}>
+                <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => onChange(setValue(env, f.key, ''))}>+ add</button>
+                <span className={s.setKey}>{f.key}</span>
+                {f.deprecated && <span className={`${s.chip} ${s.caution}`}>deprecated</span>}
+                {f.description && <p className={s.hint}>{f.description}</p>}
+              </li>
+            ))}
+          </ul>
+
+          <h4 className={s.bandHead}>add a custom variable</h4>
+          <div className={s.mapRow}>
+            <input className={s.labelInput} value={customKey} onChange={(e) => setCustomKey(e.target.value)}
+              placeholder="VARIABLE_NAME" aria-label="Custom variable name" />
+            <button className={`${s.btn} ${s.btnQuiet}`} onClick={addCustom} disabled={!customKey.trim()}>+ add</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Control({ entry, value, onChange, disabled, post }) {
   if (entry.control === 'boolean') {
     return (
       <input type="checkbox" checked={value === true} disabled={disabled}
@@ -100,20 +189,24 @@ function Control({ entry, value, onChange, disabled }) {
     )
   }
 
+  if (entry.control === 'envmap') {
+    return <EnvMap entry={entry} value={value} onChange={onChange} disabled={disabled} post={post} />
+  }
+
   // Anything deeper — nested objects, arrays of objects, unions. Shown as its
   // current value; the raw view is where these are edited, deliberately: a
   // fabricated form for a nested shape would promise more than it can keep.
   return <code className={s.cmd}>{JSON.stringify(value)} — edit in JSON view</code>
 }
 
-function SetRow({ entry, value, onChange, onRemove, disabled }) {
+function SetRow({ entry, value, onChange, onRemove, disabled, post }) {
   const advice = enumAdvice(entry, value)
   return (
     <li className={s.setRow}>
       <div className={s.setHead}>
         <span className={s.setKey}>{entry.key}</span>
         {entry.deprecated && <span className={`${s.chip} ${s.caution}`}>deprecated</span>}
-        <Control entry={entry} value={value} onChange={(v) => onChange(entry.key, v)} disabled={disabled} />
+        <Control entry={entry} value={value} onChange={(v) => onChange(entry.key, v)} disabled={disabled} post={post} />
         {!disabled && <button className={`${s.btn} ${s.btnQuiet}`} onClick={() => onRemove(entry.key)}>remove</button>}
       </div>
       {entry.description && <p className={s.hint}>{entry.description}</p>}
@@ -208,7 +301,7 @@ export function SettingsForm({ text, onChange, editable, post }) {
       {set.length === 0 && <p className={s.hint}>Nothing set in this file yet — add one above.</p>}
       <ul className={s.bandList}>
         {set.map((e) => (
-          <SetRow key={e.key} entry={e} value={e.value} disabled={!editable}
+          <SetRow key={e.key} entry={e} value={e.value} disabled={!editable} post={post}
             onChange={(k, v) => emit(setValue(value, k, v))}
             onRemove={(k) => emit(removeKey(value, k))} />
         ))}

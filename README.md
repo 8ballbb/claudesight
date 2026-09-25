@@ -89,10 +89,10 @@ refreshed out-of-band by `scripts/refresh-settings-schema.mjs`. The editor
 states which Claude Code version it reflects against the one you have installed,
 so staleness is visible rather than assumed. List settings (like `permissions.allow`) get add/remove rows, string maps get
 key/value rows, and a small object like `permissions` renders as a form of
-those — its allow/deny/ask lists and its mode dropdown. Genuinely deep or
-irregular shapes (`hooks`, `env`, MCP server lists) stay in the JSON view,
-labelled, because a fabricated form for them would promise more than it can
-keep. The form is always a convenience over the JSON: the raw view edits
+those — its allow/deny/ask lists and its mode dropdown. `env` gets its own searchable editor — its ~340 documented variables plus any
+custom ones, in set / add-documented / add-custom bands. Genuinely deep or
+irregular shapes (`hooks`, MCP server lists) stay in the JSON view, labelled,
+because a fabricated form for them would promise more than it can keep. The form is always a convenience over the JSON: the raw view edits
 anything the catalogue does not model, and every save still goes through the
 same backup, compare-and-swap and executable-write confirmation as any other
 edit — editing `permissions`, for instance, shows the change and asks before

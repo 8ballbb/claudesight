@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createSecurity } from './security.js'
 import { buildInventory, buildProjectInventory } from './api.js'
-import { readSettingsCatalog } from './readers/settings-catalog.js'
+import { readSettingsCatalog, readSettingFields } from './readers/settings-catalog.js'
 import { listSessions, readSession } from './readers/sessions.js'
 import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
@@ -124,6 +124,15 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
           // eslint-disable-next-line no-unused-vars
           const entries = [...c.entries.values()].map(({ schema, ...flat }) => flat)
           return json(res, 200, { state: c.state, provenance: c.provenance, entries })
+        }
+
+        // The documented sub-keys of a map-shaped setting (env's ~340
+        // variables), fetched on demand so they never ride along with the main
+        // catalogue. Read-only reference data — no path, no scope.
+        if (url.pathname === '/api/setting-fields' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          return json(res, 200, readSettingFields(String(body.key ?? '')))
         }
 
         if (url.pathname === '/api/read' && req.method === 'POST') {

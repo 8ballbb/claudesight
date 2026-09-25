@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { readSettingsCatalog, classifySettings } from '../src/server/readers/settings-catalog.js'
+import { readSettingsCatalog, classifySettings, readSettingFields } from '../src/server/readers/settings-catalog.js'
 
 let dir
 const schema = {
@@ -180,5 +180,47 @@ describe('composite controls — list, map, one-level object', () => {
 
   it('keeps an array of objects as json', () => {
     expect(cat().entries.get('servers').control).toBe('json')
+  })
+})
+
+describe('env — a documented string map', () => {
+  let d
+  const envSchema = {
+    $schema: 'http://json-schema.org/draft-07/schema#',
+    type: 'object',
+    properties: {
+      env: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+        properties: {
+          ANTHROPIC_API_KEY: { type: 'string', description: 'API key.' },
+          DISABLE_TELEMETRY: { type: 'string', description: 'Turn off telemetry.' },
+        },
+      },
+      // a plain string map (no fixed keys) stays 'map', not 'envmap'
+      overrides: { type: 'object', additionalProperties: { type: 'string' } },
+    },
+  }
+  beforeEach(() => {
+    d = fs.mkdtempSync(path.join(os.tmpdir(), 'claudesight-env-'))
+    fs.writeFileSync(path.join(d, 'claude-code-settings.schema.json'), JSON.stringify(envSchema))
+  })
+  afterEach(() => fs.rmSync(d, { recursive: true, force: true }))
+
+  it('classifies a documented string map as envmap', () => {
+    expect(readSettingsCatalog(d).entries.get('env').control).toBe('envmap')
+  })
+  it('leaves a keyless string map as a plain map', () => {
+    expect(readSettingsCatalog(d).entries.get('overrides').control).toBe('map')
+  })
+  it('serves the documented sub-keys on demand, with descriptions', () => {
+    const r = readSettingFields('env', d)
+    expect(r.state).toBe('ok')
+    expect(r.fields.map((f) => f.key)).toEqual(['ANTHROPIC_API_KEY', 'DISABLE_TELEMETRY'])
+    expect(r.fields[0].description).toBe('API key.')
+  })
+  it('returns absent for a key that is not a documented map', () => {
+    expect(readSettingFields('overrides', d).state).toBe('absent')
+    expect(readSettingFields('nope', d).state).toBe('absent')
   })
 })

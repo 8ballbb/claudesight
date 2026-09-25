@@ -952,3 +952,9 @@
 .promptRow { border-left: 2px solid var(--line); padding: 2px 0 2px 12px; display: flex; flex-direction: column; gap: 2px; }
 .promptAt { color: var(--faint); font-size: 10px; }
 .promptText { color: var(--ink); font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+
+/* env variable map editor (SettingsForm.jsx). */
+.envMap { display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--line); padding-left: 12px; }
+.envRow { display: flex; flex-direction: column; gap: 4px; }
+.envHead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.envHead .labelInput { flex: 1; min-width: 160px; }
