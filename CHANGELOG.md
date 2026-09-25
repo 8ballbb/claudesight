@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.0 — 2026-09-25
+
+### Added
+
+- a searchable editor for env, the last deferred settings increment
+
 ## v0.12.0 — 2026-09-24
 
 ### Added
