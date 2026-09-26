@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14.0 — 2026-09-26
+
+### Added
+
+- read-only claude -p review of Claude files
+
 ## v0.13.0 — 2026-09-25
 
 ### Added
