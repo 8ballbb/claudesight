@@ -5,6 +5,7 @@ import Projects from './Projects.jsx'
 import { useCloseGuard, CloseGuard } from './closeGuard.jsx'
 import s from './app.module.css'
 import { creatorsFor } from './NewArtifact.jsx'
+import { useCritic, ReviewToggle } from './critic.jsx'
 
 // Every write goes through here. A hidden tab polls nothing, so the moment a
 // person actually does something is the other moment the server's absence has
@@ -61,7 +62,7 @@ function ThemePicker() {
   )
 }
 
-function GlobalView({ inv, reload, guard, frozen }) {
+function GlobalView({ inv, reload, guard, frozen, critic }) {
   const [created, setCreated] = useState(null)
 
   const afterCreate = async (r) => {
@@ -97,6 +98,7 @@ function GlobalView({ inv, reload, guard, frozen }) {
           onDirtyChange={guard.onDirtyChange}
           onSaved={reload}
           frozen={frozen}
+          critic={critic}
         />
       )}
     </div>
@@ -114,6 +116,7 @@ export default function App() {
   const [readAt, setReadAt] = useState(null)
   const [quitting, setQuitting] = useState(false)
   const guard = useCloseGuard()
+  const critic = useCritic()
 
   const reload = useCallback(async () => {
     try {
@@ -197,6 +200,7 @@ export default function App() {
           {page === 'global' && <><b>{total}</b> artifacts · <b>{editable}</b> editable</>}
         </span>
         <ThemePicker />
+        <ReviewToggle critic={critic} />
         {server === 'live' && (
           quitting ? (
             <span className={s.quitConfirm}>
@@ -221,8 +225,8 @@ export default function App() {
       )}
 
       {page === 'global'
-        ? <GlobalView inv={inv} reload={reload} guard={guard} frozen={server === 'gone'} />
-        : <Projects post={post} guard={guard} frozen={server === 'gone'} />}
+        ? <GlobalView inv={inv} reload={reload} guard={guard} frozen={server === 'gone'} critic={critic} />
+        : <Projects post={post} guard={guard} frozen={server === 'gone'} critic={critic} />}
 
       <CloseGuard pending={guard.pending} onKeep={guard.keepEditing} onDiscard={guard.discard} />
     </main>

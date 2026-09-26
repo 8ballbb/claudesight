@@ -958,3 +958,22 @@
 .envRow { display: flex; flex-direction: column; gap: 4px; }
 .envHead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .envHead .labelInput { flex: 1; min-width: 160px; }
+
+/* ── Claude-file review (critic.jsx) ─────────────────────────────────────── */
+.review { margin-top: 20px; }
+.reviewReport { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.finding { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--panel); }
+.findingHead { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sev { font: 600 11px/1 var(--ui); text-transform: uppercase; letter-spacing: .05em; padding: 3px 7px; border-radius: var(--radius); border: 1px solid var(--line); }
+.sevHigh { color: var(--bad); border-color: var(--bad); }
+.sevMed { color: var(--warn); border-color: var(--warn); }
+.sevLow { color: var(--dim); }
+.action { font: 600 11px/1 var(--ui); text-transform: uppercase; letter-spacing: .05em; color: var(--dim); }
+.conf { margin-left: auto; font: 11px/1 var(--ui); color: var(--faint); }
+.quote { margin: 6px 0; padding: 4px 10px; border-left: 2px solid var(--line-firm); font: 12px/1.4 var(--mono); color: var(--dim); white-space: pre-wrap; }
+.findingProblem { margin: 4px 0; font: 13px/1.5 var(--ui); color: var(--ink); }
+.findingChange, .findingWhy { margin: 4px 0; font: 12px/1.5 var(--ui); color: var(--dim); }
+.verify { margin: 6px 0 0; font: 12px/1.4 var(--ui); color: var(--ok); }
+.limitations { border-top: 1px solid var(--line); padding-top: 8px; }
+.seeded { font: 11px/1.4 var(--ui); color: var(--faint); }

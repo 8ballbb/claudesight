@@ -159,13 +159,32 @@ diffs are stated in the direction of the action: a `+` line is one the action ad
 a comparison cannot be computed — an unreadable side, binary content, a file past the
 size limit — it says so and why, and is never reported as "no change".
 
+## Review
+
+An **opt-in** critic. With Review turned on (the `review: off/on` control in the header), an
+editable artifact's panel gains a **Review this file** button that asks a fresh `claude -p`
+for a one-shot, read-only critique — what to cut, tighten, or (rarely) add, each with a
+reason. It suggests; it never edits. You apply anything worth applying through the normal
+editor.
+
+It is the only thing in claudesight that leaves the machine, so it is deliberately careful.
+It is off until you turn it on, and **every review is confirmed before it sends**, naming
+the file. The critic gets **no write tools and no file-read tools** and runs in a neutral
+directory, so it cannot change anything, read other files, or fire the reviewed project's
+hooks. The button only appears once a quick check confirms `claude -p` is usable, and says
+why — not on PATH, not signed in — when it is not. claudesight assembles the artifact's
+resolved context (kind, precedence, the facts it already knows) and, after the critique,
+verifies any repo-specific claim locally, so a guess about a stale reference is checked
+against the real files rather than trusted.
+
 ## Safety
 
 - Binds `127.0.0.1` only. No tunnel, no LAN bind, no remote mode.
 - Every API request must carry a matching `Origin` and `Host`, and every write must be
   `application/json`. Those three checks are what stop a page on another site from
   driving this API; see §9.2 of the spec for why there is no secret in the URL.
-- No outbound requests. No telemetry, no account, no cloud, no LLM calls.
+- No outbound requests. No telemetry, no account, no cloud — with one exception you turn
+  on and confirm every time: **Review** (see below). With it off, nothing leaves the machine.
 - Writing a file that Claude Code executes as shell requires a second confirmation
   naming the exact command, bound by HMAC to that file and that content. That covers
   markdown as well as JSON: a subagent's frontmatter can declare `hooks`, or turn the

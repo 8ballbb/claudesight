@@ -153,7 +153,7 @@ export function FilteredNote({ filtered, filteredPaths }) {
   )
 }
 
-export default function Projects({ post, guard, frozen }) {
+export default function Projects({ post, guard, frozen, critic }) {
   const [found, setFound] = useState(null)
   const [selected, setSelected] = useState(null)
   const [inv, setInv] = useState(null)
@@ -314,6 +314,7 @@ export default function Projects({ post, guard, frozen }) {
           onDirtyChange={guard.onDirtyChange}
           onSaved={() => selected && pick(selected)}
           frozen={frozen}
+          critic={critic}
         />
       )}
     </div>

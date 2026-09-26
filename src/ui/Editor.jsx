@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import s from './app.module.css'
 import { SettingsForm } from './SettingsForm.jsx'
+import { ReviewPanel } from './critic.jsx'
 import { diffText } from '../server/linediff.js'
 
 // State what the app DOES, not what would hypothetically happen. Saving is
@@ -128,7 +129,7 @@ const when = (iso) => {
   try { return new Date(iso).toLocaleString() } catch { return iso }
 }
 
-export default function Editor({ item, post, onClose, onSaved, onDirtyChange, frozen }) {
+export default function Editor({ item, post, onClose, onSaved, onDirtyChange, frozen, critic }) {
   const [doc, setDoc] = useState(null)
   const [readErr, setReadErr] = useState(null)
   const [text, setText] = useState('')
@@ -414,6 +415,8 @@ export default function Editor({ item, post, onClose, onSaved, onDirtyChange, fr
             {status && <p className={`${s.status} ${status.tone === 'good' ? s.good : s.bad}`}>{status.text}</p>}
           </div>
         )}
+
+        {critic && <ReviewPanel item={item} post={post} critic={critic} />}
 
         {editable && doc && (
           <section className={s.versions}>

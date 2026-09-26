@@ -15,8 +15,20 @@ whose frontmatter can declare hooks of their own or switch the approval prompt o
 flaw that lets something else drive this API is a local code-execution flaw, and is
 treated as one.
 
-It binds `127.0.0.1` only. It makes no outbound requests: no telemetry, no account, no
-cloud, no LLM calls. Nothing you open here leaves the machine.
+It binds `127.0.0.1` only. It makes no outbound requests — no telemetry, no account, no
+cloud — **with one exception you turn on and confirm every time: Review.**
+
+**Review** (off by default) sends the artifact you are looking at to Anthropic, through
+your local `claude` CLI under your own login, to get a read-only critique back. It is the
+only path in the app that leaves the machine, and it is gated twice: a standing opt-in
+(the `review: off/on` toggle), and a per-click confirmation naming the file before
+anything is sent — the same two-gate shape as the executable-write confirmation below.
+The critic runs with **no write tools and no file-read tools** and in a neutral working
+directory, so it cannot edit anything, read other files, or trigger the reviewed project's
+hooks; claudesight stores no API key. With Review off, the old blanket holds and nothing
+leaves the machine. Note the consequence: because the binary *can* now spawn a
+cloud-calling subprocess, "makes no outbound requests" is a statement about configuration
+(Review off), not something you can assert by inspection alone.
 
 ## The model
 

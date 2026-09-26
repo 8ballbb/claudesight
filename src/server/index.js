@@ -10,6 +10,8 @@ import { discoverProjects } from './discover.js'
 import { readForEdit, writeArtifact } from './writer.js'
 import { listVersions, createVersion, readVersion, deleteVersion, compareVersion } from './versions.js'
 import { createArtifact } from './create.js'
+import { preflight as criticPreflight, review as criticReview } from './critic.js'
+import { classify } from './writability.js'
 
 const json = (res, status, body, headers = {}) => {
   res.writeHead(status, { 'content-type': 'application/json', ...headers })
@@ -49,6 +51,10 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
     const projectInventories = new Map()
     const added = new Set()
     let allowed = new Set()
+    // The preflight result is stable for a process's lifetime once it succeeds;
+    // cache it so every artifact panel does not re-probe. A failure is not
+    // cached, so fixing auth/PATH and re-checking works without a restart.
+    let criticProbe = null
 
     // An artifact id may belong to the global inventory or to any project
     // opened this session, so every lookup checks both.
@@ -150,6 +156,47 @@ export function createServer({ root, distDir, port: requestedPort = DEFAULT_PORT
           }
           const { content, etag } = readForEdit(entry.path)
           return json(res, 200, { content, etag, path: entry.path, kind: entry.kind })
+        }
+
+        // ── Claude-file review (the one outbound LLM call) ──────────────────
+        // Preflight: prove `claude -p` is usable before the UI shows any Review
+        // button. GET is safe and read-only; it makes a trivial probe call.
+        if (url.pathname === '/api/critic/preflight' && req.method === 'GET') {
+          const force = url.searchParams.get('recheck') === '1'
+          if (!criticProbe || criticProbe.state !== 'ok' || force) {
+            criticProbe = await criticPreflight()
+          }
+          return json(res, 200, criticProbe)
+        }
+
+        // Review one artifact. This SENDS the file's contents to Anthropic via
+        // the local `claude` CLI, so it is refused unless the request carries an
+        // explicit per-click confirmation, and only for editable, user-authored
+        // artifacts — reviewing something you cannot change is noise, and a
+        // stray call must never egress silently.
+        if (url.pathname === '/api/critic/review' && req.method === 'POST') {
+          const body = await parseBody(req)
+          if (body === null) return json(res, 400, { error: 'invalid-json' })
+          if (body.confirmed !== true) {
+            return json(res, 403, { state: 'error', reason: 'A review must be explicitly confirmed — nothing is sent without consent.' })
+          }
+          const entry = lookup(body.id)
+          if (!entry) return json(res, 404, { state: 'error', reason: 'unknown id' })
+          // The server-side table entry carries {path, kind, root} but not the
+          // writability class (that is computed for the client projection), so
+          // classify it here — reviewing something you cannot edit is noise.
+          const entryRoot = entry.root ?? root
+          const cls = classify({ path: entry.path, kind: entry.kind, root: entryRoot }).class
+          if (cls !== 'free' && cls !== 'exec') {
+            return json(res, 400, { state: 'error', reason: 'Only editable, user-authored artifacts can be reviewed.' })
+          }
+          const st = fs.statSync(entry.path, { throwIfNoEntry: false })
+          if (!st || !st.isFile()) {
+            return json(res, 404, { state: 'error', reason: 'This artifact has no file to review.' })
+          }
+          const { content } = readForEdit(entry.path)
+          const result = await criticReview({ entry: { ...entry, root: entryRoot, writability: { class: cls } }, content })
+          return json(res, result.state === 'ok' ? 200 : 502, result)
         }
 
         if (url.pathname === '/api/write' && req.method === 'POST') {
